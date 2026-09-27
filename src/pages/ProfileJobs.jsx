@@ -23,6 +23,7 @@ export default function ProfileJobs() {
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
   const [remoteOnly, setRemoteOnly] = useState(false)
+  const [showDismissed, setShowDismissed] = useState(false)
   const [searchResult, setSearchResult] = useState(null)
 
   const profileQuery = useQuery({
@@ -31,13 +32,13 @@ export default function ProfileJobs() {
   })
 
   const datesQuery = useQuery({
-    queryKey: ['jobDates', id],
-    queryFn: () => listJobDates(id),
+    queryKey: ['jobDates', id, showDismissed],
+    queryFn: () => listJobDates(id, showDismissed),
   })
 
   const jobsQuery = useQuery({
-    queryKey: ['jobs', id, date],
-    queryFn: () => listJobs(id, date === '' ? undefined : date),
+    queryKey: ['jobs', id, date, showDismissed],
+    queryFn: () => listJobs(id, date === '' ? undefined : date, showDismissed),
   })
 
   function handleSearchSuccess(result, label) {
@@ -288,6 +289,15 @@ export default function ProfileJobs() {
           />
           <span>Remote only</span>
         </label>
+
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={showDismissed}
+            onChange={(event) => setShowDismissed(event.target.checked)}
+          />
+          <span>Show dismissed</span>
+        </label>
       </div>
 
       {jobsQuery.isLoading && <div className="page-loading">Loading jobs…</div>}
@@ -315,7 +325,9 @@ export default function ProfileJobs() {
               : jobs.length === 0
                 ? hasJobsOnOtherDates
                   ? 'Nothing saved on this day. Pick another date above to see earlier jobs.'
-                  : 'No saved jobs for this profile. Search for roles above, or add keywords and run a profile search.'
+                  : showDismissed
+                    ? 'No saved jobs for this profile. Search for roles above, or add keywords and run a profile search.'
+                    : 'No active jobs. Search above or select “Show dismissed” to restore a job.'
                 : 'Try clearing the filters above.'}
           </p>
         </div>

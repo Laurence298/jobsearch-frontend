@@ -1,18 +1,22 @@
 import client from './client'
 
-export async function listJobs(profileId, date) {
+export async function listJobs(profileId, date, includeNotInterested = false) {
   const { data } = await client.get('/jobs', {
     params: {
       ...(profileId ? { profile_id: profileId } : {}),
       ...(date ? { date } : {}),
+      ...(includeNotInterested ? { include_not_interested: true } : {}),
     },
   })
   return data
 }
 
-export async function listJobDates(profileId) {
+export async function listJobDates(profileId, includeNotInterested = false) {
   const { data } = await client.get('/jobs/dates', {
-    params: profileId ? { profile_id: profileId } : undefined,
+    params: {
+      ...(profileId ? { profile_id: profileId } : {}),
+      ...(includeNotInterested ? { include_not_interested: true } : {}),
+    },
   })
   return data
 }

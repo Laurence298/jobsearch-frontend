@@ -12,7 +12,12 @@ export default function JobCard({ job }) {
 
   const feedbackMutation = useMutation({
     mutationFn: (status) => setFeedback(job.id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['jobDates'] })
+      if (updated.status === 'not_interested') notify('Job dismissed', 'success')
+      if (job.status === 'not_interested' && updated.status === 'new') notify('Job restored', 'success')
+    },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
@@ -73,7 +78,7 @@ export default function JobCard({ job }) {
       )}
 
       <div className="job-card__actions">
-        {job.url && (
+        {!dismissed && job.url && (
           <a
             className="btn btn--primary"
             href={job.url}
@@ -84,7 +89,7 @@ export default function JobCard({ job }) {
             Apply
           </a>
         )}
-        {job.status !== 'saved' && job.status !== 'applied' && (
+        {!dismissed && job.status !== 'saved' && job.status !== 'applied' && (
           <button
             type="button"
             className="btn"
@@ -102,6 +107,16 @@ export default function JobCard({ job }) {
             disabled={feedbackMutation.isPending}
           >
             Not interested
+          </button>
+        )}
+        {dismissed && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => mark('new')}
+            disabled={feedbackMutation.isPending}
+          >
+            Restore
           </button>
         )}
       </div>

@@ -14,15 +14,16 @@ export default function JobDetail() {
   const { notify } = useToast()
 
   const jobsQuery = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => listJobs(),
+    queryKey: ['jobs', 'includeNotInterested'],
+    queryFn: () => listJobs(undefined, undefined, true),
   })
 
   const feedbackMutation = useMutation({
     mutationFn: (status) => setFeedback(id, status),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['jobs', jobsQuery.data?.find((j) => String(j.id) === String(id))?.profile_id].filter(Boolean) })
+      queryClient.invalidateQueries({ queryKey: ['jobDates'] })
+      notify(updated.status === 'not_interested' ? 'Job dismissed' : 'Feedback updated', 'success')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -31,6 +32,7 @@ export default function JobDetail() {
     mutationFn: () => deleteJob(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['jobDates'] })
       notify('Job deleted', 'success')
       navigate(-1)
     },
@@ -167,16 +169,25 @@ export default function JobDetail() {
               className="btn"
               onClick={() => {
                 feedbackMutation.mutate(option.value)
-                notify(`Marked as ${option.label.toLowerCase()}`, 'success')
               }}
               disabled={feedbackMutation.isPending}
             >
               {option.label}
             </button>
           ))}
+          {job.status === 'not_interested' && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => feedbackMutation.mutate('new')}
+              disabled={feedbackMutation.isPending}
+            >
+              Restore
+            </button>
+          )}
         </div>
         <p className="muted">
-          Feedback helps rank future searches across job sites and queries.
+          Not interested hides this job from the default list and future searches. You can restore it here or from the jobs list with “Show dismissed”.
         </p>
       </section>
 
