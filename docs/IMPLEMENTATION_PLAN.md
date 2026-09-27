@@ -21,8 +21,10 @@ Legend: [x] implemented · [ ] planned/deferred
 - [x] Resume upload (`text`/`.txt` file + `label`), list, delete
 - [x] Keywords: generate + add/remove (editable chips)
 - [x] Skills: extract-from-resume + add/remove (editable chips)
+- [x] Education: extract-from-resume + add/remove (editable chips via replace-all)
 - [x] Full `JobProfileIn` fields in the form — `date_posted`, `auto_tailor`,
-      `notify_new_jobs`, `search_hours`, `timezone`
+      `notify_new_jobs`, `search_hours` (hourly 8am–9pm checkboxes), `timezone`,
+      `searches_per_day`
 - [x] Tracked companies: add/list/remove + view open roles (ATS boards)
 
 ### Jobs

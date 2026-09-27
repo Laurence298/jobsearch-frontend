@@ -329,6 +329,50 @@ h4 {
   width: auto;
 }
 
+.field fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.field legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+}
+
+.hour-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.78rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hour:hover {
+  border-color: var(--border-strong);
+}
+
+.hour input {
+  width: auto;
+}
+
+.hour:has(input:checked) {
+  background: var(--active);
+  border-color: var(--border-strong);
+  font-weight: 500;
+}
+
 .inline-input {
   width: 230px;
 }

@@ -90,3 +90,13 @@ export async function removeSkill(id, skill) {
   })
   return data
 }
+
+export async function generateEducation(id) {
+  const { data } = await client.post(`/profiles/${id}/education`)
+  return data
+}
+
+export async function setEducation(id, items) {
+  const { data } = await client.put(`/profiles/${id}/education`, { items })
+  return data
+}

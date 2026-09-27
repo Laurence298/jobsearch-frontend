@@ -1,5 +1,19 @@
 import { useState } from 'react'
 
+const SEARCH_WINDOW_START = 8
+const SEARCH_WINDOW_END = 21
+
+const HOURS = Array.from(
+  { length: SEARCH_WINDOW_END - SEARCH_WINDOW_START + 1 },
+  (_, index) => SEARCH_WINDOW_START + index,
+)
+
+function formatHour(hour) {
+  if (hour === 0) return '12am'
+  if (hour === 12) return '12pm'
+  return hour < 12 ? `${hour}am` : `${hour - 12}pm`
+}
+
 const EMPTY = {
   name: '',
   full_name: '',
@@ -13,17 +27,8 @@ const EMPTY = {
   date_posted: 'today',
   auto_tailor: true,
   notify_new_jobs: true,
-  search_hours: '',
+  search_hours: [],
   timezone: '',
-}
-
-function splitHours(value) {
-  if (Array.isArray(value)) return value
-  return String(value ?? '')
-    .split(/[\s,]+/)
-    .map((hour) => parseInt(hour, 10))
-    .filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23)
-    .filter((hour, index, all) => all.indexOf(hour) === index)
 }
 
 export default function ProfileForm({ initialValues, onSubmit, submitLabel, submitting }) {
@@ -31,12 +36,21 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
     ...EMPTY,
     ...initialValues,
     search_hours: Array.isArray(initialValues?.search_hours)
-      ? initialValues.search_hours.join(', ')
-      : initialValues?.search_hours ?? '',
+      ? [...initialValues.search_hours]
+      : [],
   }))
 
   function setField(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
+  }
+
+  function toggleHour(hour, checked) {
+    setValues((current) => ({
+      ...current,
+      search_hours: checked
+        ? [...current.search_hours, hour].sort((a, b) => a - b)
+        : current.search_hours.filter((entry) => entry !== hour),
+    }))
   }
 
   function handleSubmit(event) {
@@ -47,7 +61,7 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
       jobs_per_search: Number(values.jobs_per_search),
       auto_tailor: Boolean(values.auto_tailor),
       notify_new_jobs: Boolean(values.notify_new_jobs),
-      search_hours: splitHours(values.search_hours),
+      search_hours: values.search_hours,
       timezone: values.timezone?.trim() ? values.timezone.trim() : null,
     })
   }
@@ -141,11 +155,11 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
         </label>
 
         <label className="field">
-          <span>Searches per day (1–3)</span>
+          <span>Searches per day (1–{HOURS.length})</span>
           <input
             type="number"
             min="1"
-            max="3"
+            max={HOURS.length}
             value={values.searches_per_day}
             onChange={(event) => setField('searches_per_day', event.target.value)}
             required
@@ -164,14 +178,21 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
           />
         </label>
 
-        <label className="field">
-          <span>Search hours (comma-separated, 0–23)</span>
-          <input
-            value={values.search_hours}
-            onChange={(event) => setField('search_hours', event.target.value)}
-            placeholder="7, 15, 23"
-          />
-        </label>
+        <fieldset className="field field--wide">
+          <legend>Search hours (8am–9pm, local time)</legend>
+          <div className="hour-picker">
+            {HOURS.map((hour) => (
+              <label key={hour} className="hour">
+                <input
+                  type="checkbox"
+                  checked={values.search_hours.includes(hour)}
+                  onChange={(event) => toggleHour(hour, event.target.checked)}
+                />
+                <span>{formatHour(hour)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <label className="field">
           <span>Timezone (IANA)</span>

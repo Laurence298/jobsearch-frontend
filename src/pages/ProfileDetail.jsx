@@ -6,12 +6,14 @@ import {
   addSkill,
   deleteProfile,
   deleteResume,
+  generateEducation,
   generateKeywords,
   generateSkills,
   getProfile,
   listResumes,
   removeKeyword,
   removeSkill,
+  setEducation,
   updateProfile,
   uploadResume,
 } from '../api/profiles.js'
@@ -104,6 +106,21 @@ export default function ProfileDetail() {
 
   const removeSkillMutation = useMutation({
     mutationFn: (skill) => removeSkill(id, skill),
+    onSuccess: () => invalidateProfile(),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const educationMutation = useMutation({
+    mutationFn: () => generateEducation(id),
+    onSuccess: (education) => {
+      invalidateProfile()
+      notify(`Extracted ${education.length} education field(s)`, 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const updateEducationMutation = useMutation({
+    mutationFn: (items) => setEducation(id, items),
     onSuccess: () => invalidateProfile(),
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -307,6 +324,36 @@ export default function ProfileDetail() {
           onRemove={(skill) => removeSkillMutation.mutate(skill)}
           addPlaceholder="Add a skill…"
           emptyLabel="No skills yet — extract them from a resume first."
+        />
+      </section>
+
+      <section className="section">
+        <div className="section__head">
+          <h2>Education</h2>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => educationMutation.mutate()}
+            disabled={educationMutation.isPending}
+          >
+            {educationMutation.isPending ? 'Extracting…' : 'Extract from resume'}
+          </button>
+        </div>
+        <p className="muted">
+          Degrees and fields used to guide the search. Add or remove as needed.
+        </p>
+        <EditableChips
+          items={profile.education ?? []}
+          onAdd={(item) =>
+            updateEducationMutation.mutate([...(profile.education ?? []), item])
+          }
+          onRemove={(item) =>
+            updateEducationMutation.mutate(
+              (profile.education ?? []).filter((entry) => entry !== item),
+            )
+          }
+          addPlaceholder="Add a degree or field…"
+          emptyLabel="No education fields yet — extract them from a resume first."
         />
       </section>
 
