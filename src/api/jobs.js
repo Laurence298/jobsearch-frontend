@@ -1,7 +1,17 @@
 import client from './client'
 
-export async function listJobs(profileId) {
+export async function listJobs(profileId, date) {
   const { data } = await client.get('/jobs', {
+    params: {
+      ...(profileId ? { profile_id: profileId } : {}),
+      ...(date ? { date } : {}),
+    },
+  })
+  return data
+}
+
+export async function listJobDates(profileId) {
+  const { data } = await client.get('/jobs/dates', {
     params: profileId ? { profile_id: profileId } : undefined,
   })
   return data
@@ -16,6 +26,18 @@ export async function searchJobs(profileId, options = {}) {
       ...(date_posted != null ? { date_posted } : {}),
       ...(auto_tailor != null ? { auto_tailor } : {}),
       ...(publishers != null ? { publishers } : {}),
+    },
+  })
+  return data
+}
+
+export async function unifiedSearch(profileId, { q, location, date_posted } = {}) {
+  const { data } = await client.get('/jobs/search', {
+    params: {
+      profile_id: profileId,
+      q,
+      ...(location ? { location } : {}),
+      ...(date_posted != null ? { date_posted } : {}),
     },
   })
   return data

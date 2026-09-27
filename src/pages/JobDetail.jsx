@@ -186,7 +186,7 @@ export default function JobDetail() {
         </p>
       </section>
 
-      <TailoredResumePanel jobId={job.id} profileId={job.profile_id} />
+      <TailoredResumePanel key={job.id} jobId={job.id} profileId={job.profile_id} />
     </div>
   )
 }

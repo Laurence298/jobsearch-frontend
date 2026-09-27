@@ -16,6 +16,9 @@ import ResumeEditor from './ResumeEditor.jsx'
 
 const TEMPLATES = ['basic', 'professional']
 
+const TAILOR_POLL_INTERVAL = 3000
+const TAILOR_POLL_MAX = 15
+
 function ResumePreview({ jobId }) {
   const { notify } = useToast()
   const [state, setState] = useState('loading')
@@ -209,12 +212,22 @@ export default function TailoredResumePanel({ jobId, profileId }) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [view, setView] = useState('preview')
+  const [pollCount, setPollCount] = useState(0)
 
   const tailoredQuery = useQuery({
     queryKey: ['tailored', jobId],
     queryFn: () => getTailoredResume(jobId),
     retry: false,
   })
+
+  useEffect(() => {
+    if (!tailoredQuery.isError || pollCount >= TAILOR_POLL_MAX) return undefined
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['tailored', jobId] })
+      setPollCount((count) => count + 1)
+    }, TAILOR_POLL_INTERVAL)
+    return () => clearTimeout(timer)
+  }, [tailoredQuery.isError, pollCount, queryClient, jobId])
 
   const regenerateMutation = useMutation({
     mutationFn: () => regenerateTailored(jobId),
@@ -237,13 +250,25 @@ export default function TailoredResumePanel({ jobId, profileId }) {
     }
   }
 
+  const stillTailoring = tailoredQuery.isError && pollCount < TAILOR_POLL_MAX
+
   return (
     <section className="section">
       {tailoredQuery.isLoading && (
         <div className="page-loading">Checking tailored resume…</div>
       )}
 
-      {tailoredQuery.isError && (
+      {tailoredQuery.isError && stillTailoring && (
+        <>
+          <h2>Tailored resume</h2>
+          <div className="page-loading">Generating tailored resume…</div>
+          <p className="muted">
+            Auto-tailoring runs in the background after a search. This can take a few moments.
+          </p>
+        </>
+      )}
+
+      {tailoredQuery.isError && !stillTailoring && (
         <>
           <h2>Tailored resume</h2>
           <TailorForm jobId={jobId} profileId={profileId} />

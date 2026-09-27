@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listJobs, searchJobs } from '../api/jobs.js'
+import { listJobDates, listJobs, searchJobs, unifiedSearch } from '../api/jobs.js'
 import { getProfile } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import JobCard from '../components/JobCard.jsx'
 import { useToast } from '../components/Toast.jsx'
-import { formatDateTime } from '../lib/format.js'
+import { formatDate, formatDateTime, localDateString } from '../lib/format.js'
 
 const NO_JOBS = []
 
@@ -15,7 +15,10 @@ export default function ProfileJobs() {
   const queryClient = useQueryClient()
   const { notify } = useToast()
 
+  const today = localDateString()
   const [query, setQuery] = useState('')
+  const [locationQ, setLocationQ] = useState('')
+  const [date, setDate] = useState(today)
   const [publisher, setPublisher] = useState('all')
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
@@ -26,30 +29,50 @@ export default function ProfileJobs() {
     queryFn: () => getProfile(id),
   })
 
-  const jobsQuery = useQuery({
-    queryKey: ['jobs', id],
-    queryFn: () => listJobs(id),
+  const datesQuery = useQuery({
+    queryKey: ['jobDates', id],
+    queryFn: () => listJobDates(id),
   })
+
+  const jobsQuery = useQuery({
+    queryKey: ['jobs', id, date],
+    queryFn: () => listJobs(id, date === '' ? undefined : date),
+  })
+
+  function handleSearchSuccess(result) {
+    queryClient.invalidateQueries({ queryKey: ['jobs', id] })
+    queryClient.invalidateQueries({ queryKey: ['jobDates', id] })
+    queryClient.invalidateQueries({ queryKey: ['profile', id] })
+    queryClient.invalidateQueries({ queryKey: ['profiles'] })
+    const count = result?.new_jobs ?? 0
+    notify(
+      count > 0 ? `${count} new job(s) found` : 'Search complete — no new jobs',
+      count > 0 ? 'success' : 'info',
+    )
+    if (result?.jsearch_budget_exhausted) {
+      notify('JSearch budget exhausted — showing tracked companies + cached results only', 'info')
+    }
+  }
 
   const searchMutation = useMutation({
     mutationFn: (search) => searchJobs(id, search),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['jobs', id] })
-      queryClient.invalidateQueries({ queryKey: ['profile', id] })
-      queryClient.invalidateQueries({ queryKey: ['profiles'] })
-      const count = result?.new_jobs ?? 0
-      notify(
-        count > 0 ? `${count} new job(s) found` : 'Search complete — no new jobs',
-        count > 0 ? 'success' : 'info',
-      )
-      if (result?.jsearch_budget_exhausted) {
-        notify('JSearch budget exhausted — showing tracked companies + cached results only', 'info')
-      }
-    },
+    onSuccess: handleSearchSuccess,
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const unifiedMutation = useMutation({
+    mutationFn: (search) => unifiedSearch(id, search),
+    onSuccess: handleSearchSuccess,
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
   const jobs = jobsQuery.data ?? NO_JOBS
+
+  const dateOptions = useMemo(() => {
+    const additions = new Set((datesQuery.data ?? []).map((entry) => entry.date))
+    if (date !== '') additions.add(today)
+    return Array.from(additions).sort().reverse()
+  }, [datesQuery.data, date, today])
 
   const publishers = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.publisher).filter(Boolean))).sort(),
@@ -85,6 +108,15 @@ export default function ProfileJobs() {
     searchMutation.mutate({ query: query.trim() || undefined })
   }
 
+  function handleUnifiedSearch() {
+    const q = query.trim()
+    if (!q) {
+      notify('Enter a search query first', 'error')
+      return
+    }
+    unifiedMutation.mutate({ q, location: locationQ.trim() || undefined })
+  }
+
   return (
     <div className="page">
       <header className="page__head">
@@ -107,20 +139,46 @@ export default function ProfileJobs() {
             className="inline-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Optional one-off query"
+            placeholder="Search query"
+          />
+          <input
+            className="inline-input"
+            value={locationQ}
+            onChange={(event) => setLocationQ(event.target.value)}
+            placeholder="Location (optional)"
           />
           <button
             type="button"
             className="btn btn--primary"
+            onClick={handleUnifiedSearch}
+            disabled={unifiedMutation.isPending}
+          >
+            {unifiedMutation.isPending ? 'Searching…' : 'Search'}
+          </button>
+          <button
+            type="button"
+            className="btn"
             onClick={handleSearchNow}
             disabled={searchMutation.isPending}
           >
-            {searchMutation.isPending ? 'Searching…' : 'Search now'}
+            {searchMutation.isPending ? 'Running…' : 'Run full search'}
           </button>
         </div>
       </header>
 
       <div className="filters card">
+        <label className="field">
+          <span>Saved on</span>
+          <select value={date} onChange={(event) => setDate(event.target.value)}>
+            <option value="">All dates</option>
+            {dateOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === today ? 'Today' : formatDate(option)}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="field">
           <span>Publisher</span>
           <select value={publisher} onChange={(event) => setPublisher(event.target.value)}>

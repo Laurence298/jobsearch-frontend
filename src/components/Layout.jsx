@@ -20,12 +20,6 @@ export default function Layout() {
           >
             Profiles
           </NavLink>
-          <NavLink
-            to="/admin"
-            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-          >
-            Admin
-          </NavLink>
         </nav>
 
         <div className="sidebar__foot">

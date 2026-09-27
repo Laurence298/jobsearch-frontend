@@ -1,7 +1,5 @@
-import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth.jsx'
-import RequireAdmin from './auth/RequireAdmin.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -11,8 +9,6 @@ import ProfileDetail from './pages/ProfileDetail.jsx'
 import ProfileJobs from './pages/ProfileJobs.jsx'
 import JobDetail from './pages/JobDetail.jsx'
 import NotFound from './pages/NotFound.jsx'
-
-const Admin = lazy(() => import('./pages/Admin.jsx'))
 
 function App() {
   return (
@@ -32,16 +28,6 @@ function App() {
         <Route path="/profiles/:id" element={<ProfileDetail />} />
         <Route path="/profiles/:id/jobs" element={<ProfileJobs />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
-        <Route
-          path="/admin"
-          element={
-            <RequireAdmin>
-              <Suspense fallback={<div className="page-loading">Loading dashboard…</div>}>
-                <Admin />
-              </Suspense>
-            </RequireAdmin>
-          }
-        />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

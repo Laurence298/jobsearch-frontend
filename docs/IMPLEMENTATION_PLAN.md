@@ -26,9 +26,11 @@ Legend: [x] implemented · [ ] planned/deferred
 - [x] Tracked companies: add/list/remove + view open roles (ATS boards)
 
 ### Jobs
-- [x] List (`GET /jobs?profile_id=`)
+- [x] List (`GET /jobs?profile_id=`) grouped by save date — `GET /jobs/dates` menu +
+      `GET /jobs?date=YYYY-MM-DD`, defaulting the UI to today
 - [x] Search (`POST /jobs/search`) with query + `date_posted`/`auto_tailor`/`publishers`
       options, budget-exhausted notice, corrected `new_jobs` count
+- [x] Unified search (`GET /jobs/search?q=&location=`) merging tracked ATS boards + JSearch
 - [x] Delete job (`DELETE /jobs/{id}`) with confirmation
 - [x] Feedback loop (`POST /jobs/{id}/feedback`) — saved / applied / not_interested +
       status display
@@ -41,15 +43,17 @@ Legend: [x] implemented · [ ] planned/deferred
 - [x] PDF preview + download (`GET /jobs/{id}/tailored/pdf`) with graceful text fallback
 - [x] Structured edit form (`GET/PUT /jobs/{id}/tailored/data`) — dumb-simple editor
 - [x] `is_user_edited` "AI-tailored" vs "edited by you" label
+- [x] Async auto-tailor grace period: poll `GET /jobs/{id}/tailored` after a search
+      (it briefly 404s while the background pass finishes) before offering manual tailor
 
 ### Notifications
 - [x] Bell in the header with unread count (30s poll)
 - [x] Dropdown list, mark-read on open, mark-all-read, per-item delete
 
 ### Admin
-- [x] `/admin/stats` dashboard (charts + tables)
-- [x] Sign-up allowlist management (`GET/POST/DELETE /admin/allowed-emails`)
-- [x] `<RequireAdmin>` gate on the `/admin` route
+- Backend-only: served server-rendered at `/dashboard` (HTTP Basic). The frontend does
+  **not** build an admin route/UI — removed `/admin` route, `Admin` page, `RequireAdmin`,
+  and `api/admin.js`.
 
 ---
 
@@ -69,7 +73,6 @@ LAN address.
 ## Deferred / follow-ups (not blocking)
 
 - Multi-step create wizard (`/profiles/new` currently shows "Step 1 of 3")
-- `GET /jobs/search` unified-search variant (currently using `POST /jobs/search`)
 - Per-item delete in profile/job lists is present; bulk actions not needed
 - Resume PDF/DOCX parsing stays client-side until backend support lands
 - Admin API base URL runtime override (`window.__APP_CONFIG__`) is wired but untested
