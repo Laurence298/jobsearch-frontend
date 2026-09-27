@@ -17,7 +17,7 @@ services:
       # Join the reverse-proxy network so the proxy can reach jobtracker-web:80.
       - shared-proxy
     ports:
-      - "8080:80"
+      - "8085:80"
     restart: unless-stopped
 
 networks:
