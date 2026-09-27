@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listJobDates, listJobs, searchJobs, unifiedSearch } from '../api/jobs.js'
+import { bulkFeedback, listJobDates, listJobs, searchJobs, unifiedSearch } from '../api/jobs.js'
 import { getProfile } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import JobCard from '../components/JobCard.jsx'
@@ -22,7 +22,15 @@ export default function ProfileJobs() {
   const [publisher, setPublisher] = useState('all')
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
-  const [remoteOnly, setRemoteOnly] = useState(false)
+  const [workMode, setWorkMode] = useState('all')
+  const [jobType, setJobType] = useState('all')
+  const [searchPayType, setSearchPayType] = useState('')
+  const [searchPay, setSearchPay] = useState('')
+  const [searchWorkMode, setSearchWorkMode] = useState('')
+  const [searchJobType, setSearchJobType] = useState('')
+  const [searchPublishers, setSearchPublishers] = useState('')
+  const [searchRecency, setSearchRecency] = useState('')
+  const [selectedIds, setSelectedIds] = useState([])
   const [showDismissed, setShowDismissed] = useState(false)
   const [searchResult, setSearchResult] = useState(null)
 
@@ -51,6 +59,7 @@ export default function ProfileJobs() {
     })
     // SearchResponse.jobs may include matches saved on earlier days.
     setDate('')
+    setSelectedIds([])
     queryClient.invalidateQueries({ queryKey: ['jobs', id] })
     queryClient.invalidateQueries({ queryKey: ['jobDates', id] })
     queryClient.invalidateQueries({ queryKey: ['profile', id] })
@@ -65,7 +74,7 @@ export default function ProfileJobs() {
   }
 
   const searchMutation = useMutation({
-    mutationFn: () => searchJobs(id),
+    mutationFn: (options) => searchJobs(id, options),
     onSuccess: (result) => handleSearchSuccess(result, 'Saved-keyword results'),
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -73,6 +82,17 @@ export default function ProfileJobs() {
   const unifiedMutation = useMutation({
     mutationFn: (search) => unifiedSearch(id, search),
     onSuccess: (result, search) => handleSearchSuccess(result, `Results for “${search.q}”`),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const bulkMutation = useMutation({
+    mutationFn: (ids) => bulkFeedback(ids),
+    onSuccess: (updated) => {
+      setSelectedIds([])
+      queryClient.invalidateQueries({ queryKey: ['jobs', id] })
+      queryClient.invalidateQueries({ queryKey: ['jobDates', id] })
+      notify(`${updated.length} job(s) dismissed`, 'success')
+    },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
@@ -109,15 +129,15 @@ export default function ProfileJobs() {
       ) {
         return false
       }
-      if (remoteOnly) {
-        const remote = `${job.location ?? ''} ${job.title ?? ''}`
-          .toLowerCase()
-          .includes('remote')
-        if (!remote) return false
+      if (workMode !== 'all') {
+        const text = `${job.location ?? ''} ${job.title ?? ''}`.toLowerCase()
+        const legacyMode = text.includes('hybrid') ? 'hybrid' : text.includes('remote') ? 'remote' : null
+        if ((job.work_mode ?? legacyMode) !== workMode) return false
       }
+      if (jobType !== 'all' && job.job_type !== jobType) return false
       return true
     })
-  }, [jobs, publisher, source, keyword, remoteOnly])
+  }, [jobs, publisher, source, keyword, workMode, jobType])
 
   const activeSearch = searchResult?.profileId === id ? searchResult : null
   const visibleJobs = useMemo(() => {
@@ -126,6 +146,22 @@ export default function ProfileJobs() {
     return activeSearch.ids.map((jobId) => byId.get(jobId)).filter(Boolean)
   }, [activeSearch, filtered])
 
+  const selectableIds = visibleJobs.filter((job) => job.status !== 'not_interested').map((job) => job.id)
+  const selectedVisibleIds = selectableIds.filter((jobId) => selectedIds.includes(jobId))
+
+  function searchOverrides() {
+    return {
+      ...(searchPayType && searchPay !== '' ? {
+        pay_type: searchPayType,
+        [searchPayType === 'hourly' ? 'min_hourly_pay' : 'min_salary']: Number(searchPay),
+      } : {}),
+      ...(searchWorkMode ? { work_mode: searchWorkMode } : {}),
+      ...(searchJobType ? { job_type: searchJobType } : {}),
+      ...(searchPublishers.trim() ? { publishers: searchPublishers.trim() } : {}),
+      ...(searchRecency ? { date_posted: searchRecency } : {}),
+    }
+  }
+
   function handleUnifiedSearch(event) {
     event.preventDefault()
     const q = query.trim()
@@ -133,7 +169,7 @@ export default function ProfileJobs() {
       notify('Enter a search query first', 'error')
       return
     }
-    unifiedMutation.mutate({ q, location: locationQ.trim() || undefined })
+    unifiedMutation.mutate({ q, location: locationQ.trim() || undefined, ...searchOverrides() })
   }
 
   const hasJobsOnOtherDates =
@@ -186,11 +222,63 @@ export default function ProfileJobs() {
           Separate roles with commas or “or”. Each term searches separately and uses search quota;
           tracked-company results are included.
         </p>
+        <div className="form-grid search-overrides">
+          <label className="field">
+            <span>Pay target for this search</span>
+            <select value={searchPayType} onChange={(event) => { setSearchPayType(event.target.value); setSearchPay('') }}>
+              <option value="">Use profile target</option>
+              <option value="hourly">Minimum hourly pay</option>
+              <option value="annual">Minimum annual salary</option>
+            </select>
+          </label>
+          {searchPayType && (
+            <label className="field">
+              <span>{searchPayType === 'hourly' ? 'Hourly amount' : 'Annual amount'}</span>
+              <input type="number" min="0" step="0.01" value={searchPay}
+                onChange={(event) => setSearchPay(event.target.value)} placeholder="Enter an amount" />
+            </label>
+          )}
+          <label className="field">
+            <span>Work arrangement</span>
+            <select value={searchWorkMode} onChange={(event) => setSearchWorkMode(event.target.value)}>
+              <option value="">Use profile preference</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">Onsite</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Job type</span>
+            <select value={searchJobType} onChange={(event) => setSearchJobType(event.target.value)}>
+              <option value="">Use profile preference</option>
+              <option value="full-time">Full-time</option>
+              <option value="part-time">Part-time</option>
+              <option value="contract">Contract</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Publishers (comma-separated)</span>
+            <input value={searchPublishers} onChange={(event) => setSearchPublishers(event.target.value)}
+              placeholder="All publishers" />
+          </label>
+          <label className="field">
+            <span>Posted</span>
+            <select value={searchRecency} onChange={(event) => setSearchRecency(event.target.value)}>
+              <option value="">Use profile recency</option>
+              <option value="today">Today</option>
+              <option value="3days">Last 3 days</option>
+              <option value="week">Last week</option>
+              <option value="month">Last month</option>
+              <option value="all">All time</option>
+            </select>
+          </label>
+        </div>
+        <p className="muted">Jobs without reported pay are included even when a pay target is set.</p>
         <div className="job-search__actions">
           <button
             type="button"
             className="btn"
-            onClick={() => searchMutation.mutate()}
+            onClick={() => searchMutation.mutate(searchOverrides())}
             disabled={searching || !profileQuery.data?.keywords?.length}
           >
             {searchMutation.isPending ? 'Searching…' : 'Run saved keywords'}
@@ -281,13 +369,23 @@ export default function ProfileJobs() {
           />
         </label>
 
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={remoteOnly}
-            onChange={(event) => setRemoteOnly(event.target.checked)}
-          />
-          <span>Remote only</span>
+        <label className="field">
+          <span>Work arrangement</span>
+          <select value={workMode} onChange={(event) => setWorkMode(event.target.value)}>
+            <option value="all">All</option>
+            <option value="remote">Remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">Onsite</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Job type</span>
+          <select value={jobType} onChange={(event) => setJobType(event.target.value)}>
+            <option value="all">All</option>
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+          </select>
         </label>
 
         <label className="checkbox">
@@ -333,9 +431,25 @@ export default function ProfileJobs() {
         </div>
       )}
 
+      {selectableIds.length > 0 && (
+        <div className="bulk-actions card">
+          <label className="checkbox">
+            <input type="checkbox" checked={selectedVisibleIds.length === selectableIds.length}
+              onChange={(event) => setSelectedIds(event.target.checked ? selectableIds : [])} />
+            <span>Select all visible ({selectableIds.length})</span>
+          </label>
+          <button type="button" className="btn btn--danger" disabled={!selectedVisibleIds.length || bulkMutation.isPending}
+            onClick={() => bulkMutation.mutate(selectedVisibleIds)}>
+            {bulkMutation.isPending ? 'Dismissing…' : `Dismiss selected (${selectedVisibleIds.length})`}
+          </button>
+        </div>
+      )}
+
       <div className="grid">
         {visibleJobs.map((job) => (
-          <JobCard key={job.id} job={job} />
+          <JobCard key={job.id} job={job} selected={selectedIds.includes(job.id)}
+            onSelect={(checked) => setSelectedIds((current) => checked
+              ? [...new Set([...current, job.id])] : current.filter((entry) => entry !== job.id))} />
         ))}
       </div>
     </div>

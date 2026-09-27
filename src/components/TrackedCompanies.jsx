@@ -5,6 +5,7 @@ import {
   deleteTrackedCompany,
   listTrackedCompanies,
   trackedCompanyJobs,
+  updateCompanyResearch,
 } from '../api/trackedCompanies.js'
 import { apiErrorMessage } from '../api/client.js'
 import { useToast } from './Toast.jsx'
@@ -53,6 +54,47 @@ function CompanyJobs({ companyId }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+function CompanyResearch({ company, onSaved }) {
+  const { notify } = useToast()
+  const [size, setSize] = useState(company.company_size ?? '')
+  const [rating, setRating] = useState(company.rating ?? '')
+  const [note, setNote] = useState(company.research_note ?? '')
+  const mutation = useMutation({
+    mutationFn: () => updateCompanyResearch(company.id, {
+      company_size: size.trim() || null,
+      rating: rating === '' ? null : Number(rating),
+      research_note: note.trim() || null,
+    }),
+    onSuccess: () => { onSaved(); notify('Company research saved', 'success') },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  return (
+    <form className="form company-research" onSubmit={(event) => { event.preventDefault(); mutation.mutate() }}>
+      <div className="form-grid">
+        <label className="field">
+          <span>Company size (employees, if known)</span>
+          <input value={size} maxLength={100} onChange={(event) => setSize(event.target.value)} placeholder="50–100" />
+        </label>
+        <label className="field">
+          <span>Rating (0–5, if known)</span>
+          <input type="number" min="0" max="5" step="0.1" value={rating}
+            onChange={(event) => setRating(event.target.value)} />
+        </label>
+        <label className="field field--wide">
+          <span>Research note</span>
+          <textarea rows={2} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)}
+            placeholder="What you learned about the company…" />
+        </label>
+      </div>
+      <p className="muted">These details are your notes; no rating or size is inferred by the app.</p>
+      <button type="submit" className="btn" disabled={mutation.isPending}>
+        {mutation.isPending ? 'Saving…' : 'Save research'}
+      </button>
+    </form>
   )
 }
 
@@ -163,6 +205,13 @@ export default function TrackedCompanies({ profileId }) {
               </div>
             </div>
             {openId === company.id && <CompanyJobs companyId={company.id} />}
+            {openId === company.id && (
+              <CompanyResearch key={company.id} company={company}
+                onSaved={() => {
+                  queryClient.invalidateQueries({ queryKey: ['trackedCompanies', profileId] })
+                  queryClient.invalidateQueries({ queryKey: ['jobs'] })
+                }} />
+            )}
           </li>
         ))}
       </ul>

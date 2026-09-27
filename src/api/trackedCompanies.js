@@ -17,6 +17,11 @@ export async function trackedCompanyJobs(id) {
   return data
 }
 
+export async function updateCompanyResearch(id, payload) {
+  const { data } = await client.put(`/tracked-companies/${id}/research`, payload)
+  return data
+}
+
 export async function deleteTrackedCompany(id) {
   await client.delete(`/tracked-companies/${id}`)
 }

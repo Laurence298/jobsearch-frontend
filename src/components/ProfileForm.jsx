@@ -21,7 +21,13 @@ const EMPTY = {
   phone: '',
   location: 'Calgary, Alberta',
   desired_titles: '',
-  job_type: 'full-time',
+  job_type: '',
+  work_mode: '',
+  pay_type: '',
+  min_hourly_pay: '',
+  min_salary: '',
+  alert_min_hourly_pay: '',
+  alert_min_salary: '',
   experience_level: 'mid',
   years_experience: '',
   experience_range: 2,
@@ -30,6 +36,7 @@ const EMPTY = {
   date_posted: 'today',
   auto_tailor: true,
   notify_new_jobs: true,
+  notify_weekly_digest: false,
   search_hours: [],
   timezone: '',
 }
@@ -72,6 +79,18 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
       experience_range: Number(values.experience_range),
       auto_tailor: Boolean(values.auto_tailor),
       notify_new_jobs: Boolean(values.notify_new_jobs),
+      notify_weekly_digest: Boolean(values.notify_weekly_digest),
+      job_type: values.job_type || null,
+      work_mode: values.work_mode || null,
+      pay_type: values.pay_type || null,
+      min_hourly_pay: values.pay_type === 'hourly' && values.min_hourly_pay !== '' && values.min_hourly_pay != null
+        ? Number(values.min_hourly_pay) : null,
+      min_salary: values.pay_type === 'annual' && values.min_salary !== '' && values.min_salary != null
+        ? Number(values.min_salary) : null,
+      alert_min_hourly_pay: values.alert_min_hourly_pay !== '' && values.alert_min_hourly_pay != null
+        ? Number(values.alert_min_hourly_pay) : null,
+      alert_min_salary: values.alert_min_salary !== '' && values.alert_min_salary != null
+        ? Number(values.alert_min_salary) : null,
       search_hours: values.search_hours,
       timezone: values.timezone?.trim() ? values.timezone.trim() : null,
     })
@@ -133,12 +152,60 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
             value={values.job_type}
             onChange={(event) => setField('job_type', event.target.value)}
           >
+            <option value="">Any job type</option>
             <option value="full-time">Full-time</option>
             <option value="part-time">Part-time</option>
             <option value="contract">Contract</option>
-            <option value="internship">Internship</option>
           </select>
         </label>
+
+        <label className="field">
+          <span>Work arrangement</span>
+          <select value={values.work_mode ?? ''} onChange={(event) => setField('work_mode', event.target.value)}>
+            <option value="">Any arrangement</option>
+            <option value="remote">Remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">Onsite</option>
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Target pay period</span>
+          <select value={values.pay_type ?? ''} onChange={(event) => setField('pay_type', event.target.value)}>
+            <option value="">No pay target</option>
+            <option value="hourly">Hourly</option>
+            <option value="annual">Annual</option>
+          </select>
+        </label>
+
+        {values.pay_type && (
+          <label className="field">
+            <span>{values.pay_type === 'hourly' ? 'Minimum hourly pay' : 'Minimum annual salary'}</span>
+            <input type="number" min="0" step="0.01"
+              value={values.pay_type === 'hourly' ? values.min_hourly_pay ?? '' : values.min_salary ?? ''}
+              onChange={(event) => setField(values.pay_type === 'hourly' ? 'min_hourly_pay' : 'min_salary', event.target.value)}
+              placeholder={values.pay_type === 'hourly' ? 'e.g. 40' : 'e.g. 80000'} />
+          </label>
+        )}
+        <p className="muted field--wide">Jobs without comparable pay remain visible. Pay comparisons use 2,080 hours per year in the listing’s currency.</p>
+
+        <label className="field">
+          <span>Pay alert: minimum hourly pay (optional)</span>
+          <input type="number" min="0" step="0.01" value={values.alert_min_hourly_pay ?? ''}
+            onChange={(event) => setValues((current) => ({ ...current,
+              alert_min_hourly_pay: event.target.value,
+              ...(event.target.value !== '' ? { alert_min_salary: '' } : {}),
+            }))} placeholder="e.g. 50" />
+        </label>
+        <label className="field">
+          <span>Pay alert: minimum annual salary (optional)</span>
+          <input type="number" min="0" step="0.01" value={values.alert_min_salary ?? ''}
+            onChange={(event) => setValues((current) => ({ ...current,
+              alert_min_salary: event.target.value,
+              ...(event.target.value !== '' ? { alert_min_hourly_pay: '' } : {}),
+            }))} placeholder="e.g. 100000" />
+        </label>
+        <p className="muted field--wide">Set one pay alert threshold to receive a separate notification for new scheduled matches with reported pay above it.</p>
 
         <label className="field">
           <span>Experience level</span>
@@ -270,6 +337,11 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
             onChange={(event) => setField('notify_new_jobs', event.target.checked)}
           />
           <span>Notify me on new jobs</span>
+        </label>
+        <label className="checkbox">
+          <input type="checkbox" checked={values.notify_weekly_digest}
+            onChange={(event) => setField('notify_weekly_digest', event.target.checked)} />
+          <span>Send a weekly digest of matches</span>
         </label>
       </div>
 

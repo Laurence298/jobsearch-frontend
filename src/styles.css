@@ -655,6 +655,61 @@ h4 {
   margin-top: auto;
 }
 
+.job-card__select {
+  align-self: flex-start;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.job-card__pay-note,
+.job-card__research {
+  margin: 0;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bulk-actions .checkbox {
+  align-self: center;
+  padding: 0;
+}
+
+.search-overrides {
+  margin: 0.75rem 0;
+}
+
+.company-research {
+  margin-top: 1rem;
+  max-width: 620px;
+}
+
+.company-research p {
+  margin: 0;
+}
+
+.notif__filters {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+}
+
+.notif__filters .btn {
+  font-size: 0.75rem;
+}
+
+.btn--active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(35, 131, 226, 0.08);
+}
+
 .job-card--dismissed {
   opacity: 0.55;
 }

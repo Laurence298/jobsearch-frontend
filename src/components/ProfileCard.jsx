@@ -12,7 +12,19 @@ export default function ProfileCard({ profile, onDelete, deleting }) {
           <p className="muted">
             {profile.desired_titles || 'No desired titles'}
             {profile.location ? ` · ${profile.location}` : ''}
+            {profile.work_mode ? ` · ${profile.work_mode}` : ''}
           </p>
+          {(profile.min_hourly_pay != null || profile.min_salary != null) && (
+            <p className="muted">
+              Target: {profile.pay_type === 'hourly' && profile.min_hourly_pay != null
+                ? `${profile.min_hourly_pay}/hour`
+                : profile.pay_type === 'annual' && profile.min_salary != null
+                  ? `${Number(profile.min_salary).toLocaleString()}/year`
+                  : profile.min_hourly_pay != null
+                    ? `${profile.min_hourly_pay}/hour`
+                    : `${Number(profile.min_salary).toLocaleString()}/year`}
+            </p>
+          )}
         </div>
         <span className="badge badge--soft">
           {profile.searches_per_day}× / day

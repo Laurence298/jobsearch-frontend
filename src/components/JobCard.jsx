@@ -5,8 +5,9 @@ import { apiErrorMessage } from '../api/client.js'
 import { useToast } from './Toast.jsx'
 import { formatDate } from '../lib/format.js'
 import { STATUS_LABELS } from '../lib/jobStatus.js'
+import { payNote, salaryLabel } from '../lib/pay.js'
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, selected = false, onSelect }) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
 
@@ -29,6 +30,12 @@ export default function JobCard({ job }) {
 
   return (
     <article className={`card job-card${dismissed ? ' job-card--dismissed' : ''}`}>
+      {onSelect && !dismissed && (
+        <label className="checkbox job-card__select">
+          <input type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} />
+          <span>Select for bulk dismissal</span>
+        </label>
+      )}
       <div className="job-card__head">
         <div>
           <h3>
@@ -45,6 +52,8 @@ export default function JobCard({ job }) {
             <span className="badge badge--soft">{job.source}</span>
           )}
           {job.publisher && <span className="badge">{job.publisher}</span>}
+          {job.work_mode && <span className="badge badge--soft">{job.work_mode}</span>}
+          {job.job_type && <span className="badge badge--soft">{job.job_type}</span>}
         </div>
       </div>
 
@@ -59,13 +68,20 @@ export default function JobCard({ job }) {
           <dt>Posted</dt>
           <dd>{formatDate(job.posted_at)}</dd>
         </div>
-        {job.salary && (
-          <div>
-            <dt>Salary</dt>
-            <dd>{job.salary}</dd>
-          </div>
-        )}
+        <div>
+          <dt>Pay</dt>
+          <dd title={payNote(job) ?? undefined}>{salaryLabel(job)}</dd>
+        </div>
       </dl>
+      {payNote(job) && <p className="muted job-card__pay-note">{payNote(job)}</p>}
+
+      {job.company_research && (
+        <p className="muted job-card__research">
+          Tracked company{job.company_research.company_size ? ` · ${job.company_research.company_size} employees` : ''}
+          {job.company_research.rating != null ? ` · Rating ${job.company_research.rating}/5` : ''}
+          {job.company_research.research_note ? ` · ${job.company_research.research_note}` : ''}
+        </p>
+      )}
 
       {job.matched_skills && job.matched_skills.length > 0 && (
         <ul className="chips">
@@ -84,10 +100,12 @@ export default function JobCard({ job }) {
             href={job.url}
             target="_blank"
             rel="noreferrer"
-            onClick={() => mark('applied')}
           >
-            Apply
+            Open application
           </a>
+        )}
+        {!dismissed && (
+          <Link className="btn" to={`/jobs/${job.id}`}>Track application</Link>
         )}
         {!dismissed && job.status !== 'saved' && job.status !== 'applied' && (
           <button

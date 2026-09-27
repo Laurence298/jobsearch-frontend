@@ -1,14 +1,19 @@
 import client from './client'
 
-export async function listNotifications(unreadOnly = false) {
+export async function listNotifications(unreadOnly = false, channel = '') {
   const { data } = await client.get('/notifications', {
-    params: unreadOnly ? { unread_only: true } : undefined,
+    params: {
+      ...(unreadOnly ? { unread_only: true } : {}),
+      ...(channel ? { channel } : {}),
+    },
   })
   return data
 }
 
-export async function unreadCount() {
-  const { data } = await client.get('/notifications/unread-count')
+export async function unreadCount(channel = '') {
+  const { data } = await client.get('/notifications/unread-count', {
+    params: channel ? { channel } : undefined,
+  })
   return data
 }
 

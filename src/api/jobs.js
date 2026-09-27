@@ -22,7 +22,7 @@ export async function listJobDates(profileId, includeNotInterested = false) {
 }
 
 export async function searchJobs(profileId, options = {}) {
-  const { query, date_posted, auto_tailor, publishers } = options
+  const { query, date_posted, auto_tailor, publishers, min_hourly_pay, min_salary, pay_type, work_mode, job_type } = options
   const { data } = await client.post('/jobs/search', null, {
     params: {
       profile_id: profileId,
@@ -30,18 +30,29 @@ export async function searchJobs(profileId, options = {}) {
       ...(date_posted != null ? { date_posted } : {}),
       ...(auto_tailor != null ? { auto_tailor } : {}),
       ...(publishers != null ? { publishers } : {}),
+      ...(min_hourly_pay != null ? { min_hourly_pay } : {}),
+      ...(min_salary != null ? { min_salary } : {}),
+      ...(pay_type ? { pay_type } : {}),
+      ...(work_mode ? { work_mode } : {}),
+      ...(job_type ? { job_type } : {}),
     },
   })
   return data
 }
 
-export async function unifiedSearch(profileId, { q, location, date_posted } = {}) {
+export async function unifiedSearch(profileId, { q, location, date_posted, publishers, min_hourly_pay, min_salary, pay_type, work_mode, job_type } = {}) {
   const { data } = await client.get('/jobs/search', {
     params: {
       profile_id: profileId,
       q,
       ...(location ? { location } : {}),
       ...(date_posted != null ? { date_posted } : {}),
+      ...(publishers ? { publishers } : {}),
+      ...(min_hourly_pay != null ? { min_hourly_pay } : {}),
+      ...(min_salary != null ? { min_salary } : {}),
+      ...(pay_type ? { pay_type } : {}),
+      ...(work_mode ? { work_mode } : {}),
+      ...(job_type ? { job_type } : {}),
     },
   })
   return data
@@ -51,8 +62,13 @@ export async function deleteJob(jobId) {
   await client.delete(`/jobs/${jobId}`)
 }
 
-export async function setFeedback(jobId, status) {
-  const { data } = await client.post(`/jobs/${jobId}/feedback`, { status })
+export async function setFeedback(jobId, status, details = {}) {
+  const { data } = await client.post(`/jobs/${jobId}/feedback`, { status, ...details })
+  return data
+}
+
+export async function bulkFeedback(jobIds, status = 'not_interested') {
+  const { data } = await client.post('/jobs/feedback/bulk', { job_ids: jobIds, status })
   return data
 }
 
