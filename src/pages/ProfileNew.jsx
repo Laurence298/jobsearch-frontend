@@ -1,7 +1,9 @@
+import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { createProfile } from '../api/profiles.js'
+import { createProfileWithResume, previewResume } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
+import EditableChips from '../components/EditableChips.jsx'
 import ProfileForm from '../components/ProfileForm.jsx'
 import { useToast } from '../components/Toast.jsx'
 
@@ -9,16 +11,72 @@ export default function ProfileNew() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { notify } = useToast()
+  const fileInput = useRef(null)
+  const [resumeText, setResumeText] = useState('')
+  const [resumeFile, setResumeFile] = useState(null)
+  const [resume, setResume] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [skills, setSkills] = useState([])
+  const [education, setEducation] = useState([])
+
+  function review(fields) {
+    setDraft(fields)
+    setSkills(fields.skills ?? [])
+    setEducation(fields.education ?? [])
+  }
+
+  const previewMutation = useMutation({
+    mutationFn: (selectedResume) => previewResume(selectedResume.text),
+    onSuccess: review,
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
 
   const createMutation = useMutation({
-    mutationFn: createProfile,
+    mutationFn: (values) => createProfileWithResume({ ...values, skills, education }, resume),
     onSuccess: (profile) => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-      notify('Profile created — add a resume and generate keywords', 'success')
+      queryClient.invalidateQueries({ queryKey: ['resumes', String(profile.id)] })
+      notify('Profile and resume saved. Review search queries next.', 'success')
       navigate(`/profiles/${profile.id}`, { replace: true })
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
+
+  async function handleResumeSubmit(event) {
+    event.preventDefault()
+    try {
+      const text = resumeFile ? await resumeFile.text() : resumeText
+      if (!text.trim()) {
+        notify('Paste resume text or choose a .txt file first', 'error')
+        return
+      }
+      if (text.length > 100_000) {
+        notify('Resume is too long (maximum 100,000 characters)', 'error')
+        return
+      }
+      const selectedResume = { text, filename: resumeFile?.name ?? null }
+      setResume(selectedResume)
+      previewMutation.mutate(selectedResume)
+    } catch {
+      notify('Could not read this file. Choose a UTF-8 .txt file or paste the text.', 'error')
+    }
+  }
+
+  function addUnique(setter, value) {
+    setter((items) => items.some((item) => item.toLowerCase() === value.toLowerCase())
+      ? items : [...items, value])
+  }
+
+  const firstTitle = draft?.desired_titles?.[0]
+  const initialValues = draft ? {
+    name: firstTitle ? `${firstTitle.slice(0, 200)} roles` : 'My job search',
+    full_name: draft.full_name ?? '',
+    phone: draft.phone ?? '',
+    location: draft.location ?? '',
+    desired_titles: (draft.desired_titles ?? []).join(', '),
+    experience_level: draft.experience_level ?? 'mid',
+    years_experience: draft.years_experience ?? '',
+  } : null
 
   return (
     <div className="page">
@@ -26,16 +84,105 @@ export default function ProfileNew() {
         <div>
           <h1>New profile</h1>
           <p className="muted">
-            Step 1 of 3 — set up the search settings. Resume and keywords come next.
+            {draft ? 'Step 2 of 2 — review and edit your search profile.'
+              : 'Step 1 of 2 — add your resume to prefill your profile.'}
           </p>
         </div>
       </header>
 
-      <ProfileForm
-        onSubmit={(values) => createMutation.mutate(values)}
-        submitLabel="Create profile"
-        submitting={createMutation.isPending}
-      />
+      {!draft ? (
+        <section className="card form" aria-label="Add resume">
+          <h2>Start with your resume</h2>
+          <p className="muted">
+            We’ll suggest your name, contact information, background and roles from the resume.
+            You can change every suggestion before creating your profile.
+          </p>
+          <form className="form" onSubmit={handleResumeSubmit}>
+            <label className="field">
+              <span>Upload a UTF-8 .txt resume</span>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".txt,text/plain"
+                onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
+              />
+            </label>
+            {resumeFile && (
+              <button type="button" className="btn" onClick={() => {
+                setResumeFile(null)
+                if (fileInput.current) fileInput.current.value = ''
+              }}>
+                Use pasted text instead
+              </button>
+            )}
+            <label className="field">
+              <span>Or paste resume text</span>
+              <textarea
+                rows={8}
+                value={resumeText}
+                onChange={(event) => setResumeText(event.target.value)}
+                placeholder="Paste your resume here…"
+              />
+            </label>
+            <button className="btn btn--primary" type="submit" disabled={previewMutation.isPending}>
+              {previewMutation.isPending ? 'Reading resume…' : 'Review suggested profile'}
+            </button>
+          </form>
+          {previewMutation.isError && resume && (
+            <button type="button" className="btn" onClick={() => review({})}>
+              Continue without suggestions
+            </button>
+          )}
+        </section>
+      ) : (
+        <>
+          <div className="card">
+            <strong>Resume ready: {resume.filename || 'Pasted text'}</strong>
+            <p className="muted">Check your preferred search location and job titles — the resume may not state them.</p>
+            {!draft.full_name && !draft.phone && !draft.location && !draft.desired_titles?.length
+              && !draft.skills?.length && !draft.education?.length
+              && draft.years_experience == null && (
+              <p className="muted">No details could be extracted. Fill in the profile below using your resume.</p>
+            )}
+            <button type="button" className="btn" onClick={() => setDraft(null)}>
+              Change resume
+            </button>
+          </div>
+
+          <section className="section">
+            <h2>Review skills</h2>
+            <EditableChips
+              items={skills}
+              onAdd={(item) => addUnique(setSkills, item)}
+              onRemove={(item) => setSkills((items) => items.filter((entry) => entry !== item))}
+              addPlaceholder="Add a skill…"
+              emptyLabel="No skills found — add any you want to use for matching."
+            />
+          </section>
+
+          <section className="section">
+            <h2>Review education</h2>
+            <EditableChips
+              items={education}
+              onAdd={(item) => addUnique(setEducation, item)}
+              onRemove={(item) => setEducation((items) => items.filter((entry) => entry !== item))}
+              addPlaceholder="Add a degree or field…"
+              emptyLabel="No education fields found — add one if relevant."
+            />
+          </section>
+
+          <section className="section">
+            <h2>Review profile and search settings</h2>
+            <ProfileForm
+              initialValues={initialValues}
+              onSubmit={(values) => createMutation.mutate(values)}
+              submitLabel="Create profile with resume"
+              submitting={createMutation.isPending}
+              requireLocation
+            />
+          </section>
+        </>
+      )}
     </div>
   )
 }

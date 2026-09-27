@@ -7,13 +7,14 @@ import {
   deleteProfile,
   deleteResume,
   generateEducation,
-  generateKeywords,
   generateSkills,
   getProfile,
   listResumes,
   removeKeyword,
   removeSkill,
   setEducation,
+  setKeywords,
+  suggestKeywords,
   updateProfile,
   uploadResume,
 } from '../api/profiles.js'
@@ -33,6 +34,7 @@ export default function ProfileDetail() {
   const [resumeText, setResumeText] = useState('')
   const [resumeFile, setResumeFile] = useState(null)
   const [resumeLabel, setResumeLabel] = useState('')
+  const [suggestions, setSuggestions] = useState(null)
 
   const profileQuery = useQuery({
     queryKey: ['profile', id],
@@ -69,10 +71,20 @@ export default function ProfileDetail() {
   })
 
   const keywordsMutation = useMutation({
-    mutationFn: () => generateKeywords(id),
+    mutationFn: () => suggestKeywords(id),
     onSuccess: (keywords) => {
+      setSuggestions({ profileId: id, items: keywords })
+      notify(`${keywords.length} search suggestion(s) ready to review`, 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const saveKeywordsMutation = useMutation({
+    mutationFn: (items) => setKeywords(id, items),
+    onSuccess: () => {
+      setSuggestions(null)
       invalidateProfile()
-      notify(`Generated ${keywords.length} keyword(s)`, 'success')
+      notify('Search queries saved', 'success')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -163,6 +175,7 @@ export default function ProfileDetail() {
   }
 
   const profile = profileQuery.data
+  const suggestedItems = suggestions?.profileId === id ? suggestions.items : null
 
   function handleDelete() {
     if (window.confirm(`Delete "${profile.name}" and all of its jobs?`)) {
@@ -217,6 +230,8 @@ export default function ProfileDetail() {
             desired_titles: profile.desired_titles ?? '',
             job_type: profile.job_type ?? 'full-time',
             experience_level: profile.experience_level ?? 'mid',
+            years_experience: profile.years_experience ?? '',
+            experience_range: profile.experience_range ?? 2,
             searches_per_day: profile.searches_per_day ?? 3,
             jobs_per_search: profile.jobs_per_search ?? 20,
             date_posted: profile.date_posted ?? 'today',
@@ -366,18 +381,68 @@ export default function ProfileDetail() {
             onClick={() => keywordsMutation.mutate()}
             disabled={keywordsMutation.isPending}
           >
-            {keywordsMutation.isPending ? 'Generating…' : 'Generate keywords'}
+            {keywordsMutation.isPending ? 'Generating…' : 'Suggest search queries'}
           </button>
         </div>
         <p className="muted">
-          Search queries used by job search when no query is given. Add or remove as needed.
+          Broad role titles work best. Each saved query runs separately and uses search quota;
+          review suggestions before replacing your current queries.
         </p>
+        {suggestedItems && (
+          <div className="card form" aria-label="Suggested search queries">
+            <h3>Review suggested queries</h3>
+            {suggestedItems.map((item, index) => (
+              <div className="editable-chips__add" key={index}>
+                <input
+                  className="inline-input"
+                  aria-label={`Search query ${index + 1}`}
+                  value={item}
+                  onChange={(event) =>
+                    setSuggestions((current) => ({
+                      ...current,
+                      items: current.items.map((query, position) =>
+                        position === index ? event.target.value : query,
+                      ),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    setSuggestions((current) => ({
+                      ...current,
+                      items: current.items.filter((_, position) => position !== index),
+                    }))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <div className="job-search__actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={saveKeywordsMutation.isPending || !suggestedItems.some((item) => item.trim())}
+                onClick={() =>
+                  saveKeywordsMutation.mutate(suggestedItems.map((item) => item.trim()).filter(Boolean))
+                }
+              >
+                {saveKeywordsMutation.isPending ? 'Saving…' : 'Use these queries'}
+              </button>
+              <button type="button" className="btn" onClick={() => setSuggestions(null)} disabled={saveKeywordsMutation.isPending}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         <EditableChips
           items={profile.keywords ?? []}
           onAdd={(keyword) => addKeywordMutation.mutate(keyword)}
           onRemove={(keyword) => removeKeywordMutation.mutate(keyword)}
           addPlaceholder="Add a keyword…"
-          emptyLabel="No keywords yet — generate or add some."
+          emptyLabel="No search queries yet — get suggestions or add your own."
         />
       </section>
 

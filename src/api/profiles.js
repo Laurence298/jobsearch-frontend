@@ -15,6 +15,20 @@ export async function createProfile(payload) {
   return data
 }
 
+export async function previewResume(resumeText) {
+  const { data } = await client.post('/profiles/resume-preview', { resume_text: resumeText })
+  return data
+}
+
+export async function createProfileWithResume(profile, resume) {
+  const { data } = await client.post('/profiles/with-resume', {
+    profile,
+    resume_text: resume.text,
+    filename: resume.filename,
+  })
+  return data
+}
+
 export async function updateProfile(id, payload) {
   const { data } = await client.put(`/profiles/${id}`, payload)
   return data
@@ -49,6 +63,11 @@ export async function deleteResume(profileId, resumeId) {
 
 export async function generateKeywords(id) {
   const { data } = await client.post(`/profiles/${id}/keywords`)
+  return data
+}
+
+export async function suggestKeywords(id) {
+  const { data } = await client.post(`/profiles/${id}/keywords/suggestions`)
   return data
 }
 

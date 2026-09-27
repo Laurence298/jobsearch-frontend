@@ -23,6 +23,8 @@ const EMPTY = {
   desired_titles: '',
   job_type: 'full-time',
   experience_level: 'mid',
+  years_experience: '',
+  experience_range: 2,
   searches_per_day: 3,
   jobs_per_search: 20,
   date_posted: 'today',
@@ -32,7 +34,7 @@ const EMPTY = {
   timezone: '',
 }
 
-export default function ProfileForm({ initialValues, onSubmit, submitLabel, submitting }) {
+export default function ProfileForm({ initialValues, onSubmit, submitLabel, submitting, requireLocation = false }) {
   const [values, setValues] = useState(() => ({
     ...EMPTY,
     ...initialValues,
@@ -65,6 +67,9 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
       ...values,
       searches_per_day: Number(values.searches_per_day),
       jobs_per_search: Number(values.jobs_per_search),
+      years_experience: values.years_experience === '' || values.years_experience == null
+        ? null : Number(values.years_experience),
+      experience_range: Number(values.experience_range),
       auto_tailor: Boolean(values.auto_tailor),
       notify_new_jobs: Boolean(values.notify_new_jobs),
       search_hours: values.search_hours,
@@ -104,10 +109,12 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
         </label>
 
         <label className="field">
-          <span>Location</span>
+          <span>Preferred search location</span>
           <input
             value={values.location}
             onChange={(event) => setField('location', event.target.value)}
+            required={requireLocation}
+            placeholder="Calgary, Alberta or Remote"
           />
         </label>
 
@@ -145,6 +152,39 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
             <option value="lead">Lead</option>
           </select>
         </label>
+
+        <label className="field">
+          <span>Years of relevant experience (optional)</span>
+          <input
+            type="number"
+            min="0"
+            max="50"
+            step="1"
+            value={values.years_experience ?? ''}
+            onChange={(event) => setField('years_experience', event.target.value)}
+            placeholder="e.g. 3"
+          />
+        </label>
+
+        {values.years_experience !== '' && values.years_experience != null && (
+          <label className="field">
+            <span>How broad should the match be?</span>
+            <select
+              value={values.experience_range}
+              onChange={(event) => setField('experience_range', Number(event.target.value))}
+            >
+              <option value={1}>Focused (±1 year)</option>
+              <option value={2}>Balanced (±2 years)</option>
+              <option value={4}>Broad (±4 years)</option>
+            </select>
+          </label>
+        )}
+
+        {values.years_experience !== '' && values.years_experience != null && (
+          <p className="muted field--wide">
+            Prioritizes jobs asking for roughly {Math.max(0, Number(values.years_experience) - Number(values.experience_range))}–{Number(values.years_experience) + Number(values.experience_range)} years. Other jobs still appear.
+          </p>
+        )}
 
         <label className="field">
           <span>Listing recency</span>
