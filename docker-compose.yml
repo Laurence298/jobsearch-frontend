@@ -1,0 +1,16 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Optional build-time default; API_BASE_URL below overrides it at runtime.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    image: jobtracker-web
+    environment:
+      # Point this at the backend. For Nginx Proxy Manager, either use a
+      # shared docker network name (http://jobtracker-api:8000) or a public
+      # API URL (https://jobtracker-api.example.com).
+      API_BASE_URL: ${API_BASE_URL:-}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
