@@ -11,6 +11,11 @@ export async function listJobs(profileId, date, includeNotInterested = false) {
   return data
 }
 
+export async function getJob(jobId) {
+  const { data } = await client.get(`/jobs/${jobId}`)
+  return data
+}
+
 export async function listJobDates(profileId, includeNotInterested = false) {
   const { data } = await client.get('/jobs/dates', {
     params: {

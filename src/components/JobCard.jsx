@@ -83,14 +83,31 @@ export default function JobCard({ job, selected = false, onSelect }) {
         </p>
       )}
 
+      {job.description_preview ? (
+        <p className="job-card__description">{job.description_preview}{job.description_preview.length >= 240 ? '…' : ''}</p>
+      ) : (
+        <p className="muted job-card__description">Description not provided by this listing.</p>
+      )}
+
+      {job.job_skills?.length > 0 && (
+        <div className="job-card__skills">
+          <span className="muted">Listed skills</span>
+          <ul className="chips">
+            {job.job_skills.slice(0, 5).map((skill) => <li key={skill} className="chip" title={skill}>{skill}</li>)}
+            {job.job_skills.length > 5 && <li className="chip">+{job.job_skills.length - 5} more</li>}
+          </ul>
+        </div>
+      )}
+
       {job.matched_skills && job.matched_skills.length > 0 && (
-        <ul className="chips">
-          {job.matched_skills.map((skill) => (
-            <li key={skill} className="chip chip--skill">
-              {skill}
-            </li>
-          ))}
-        </ul>
+        <div className="job-card__skills">
+          <span className="muted">Matches your skills</span>
+          <ul className="chips">
+            {job.matched_skills.map((skill) => (
+              <li key={skill} className="chip chip--skill">{skill}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="job-card__actions">

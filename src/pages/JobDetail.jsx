@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { deleteJob, listJobs, setFeedback } from '../api/jobs.js'
+import { deleteJob, getJob, setFeedback } from '../api/jobs.js'
 import { apiErrorMessage } from '../api/client.js'
 import { useToast } from '../components/Toast.jsx'
 import TailoredResumePanel from '../components/TailoredResumePanel.jsx'
@@ -18,14 +18,16 @@ export default function JobDetail() {
   const [applicationNote, setApplicationNote] = useState(null)
 
   const jobsQuery = useQuery({
-    queryKey: ['jobs', 'includeNotInterested'],
-    queryFn: () => listJobs(undefined, undefined, true),
+    queryKey: ['job', id],
+    queryFn: () => getJob(id),
+    retry: false,
   })
 
   const feedbackMutation = useMutation({
     mutationFn: ({ status, details }) => setFeedback(id, status, details),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['job', id] })
       queryClient.invalidateQueries({ queryKey: ['jobDates'] })
       notify(updated.status === 'not_interested' ? 'Job dismissed' : 'Feedback updated', 'success')
     },
@@ -55,7 +57,7 @@ export default function JobDetail() {
     )
   }
 
-  const job = jobsQuery.data.find((item) => String(item.id) === String(id))
+  const job = jobsQuery.data
 
   if (!job) {
     return (
@@ -195,7 +197,7 @@ export default function JobDetail() {
 
       {job.matched_skills && job.matched_skills.length > 0 && (
         <section className="section">
-          <h2>Matched skills</h2>
+          <h2>Matches your skills</h2>
           <ul className="chips">
             {job.matched_skills.map((skill) => (
               <li key={skill} className="chip chip--skill">
@@ -205,6 +207,26 @@ export default function JobDetail() {
           </ul>
         </section>
       )}
+
+      <section className="section card">
+        <h2>Job description</h2>
+        {job.description ? (
+          <div className="job-description">{job.description}</div>
+        ) : (
+          <p className="muted">This listing did not provide a description. Open the original listing for more details.</p>
+        )}
+      </section>
+
+      <section className="section card">
+        <h2>Skills listed by the employer</h2>
+        {job.job_skills?.length > 0 ? (
+          <ul className="chips">
+            {job.job_skills.map((skill) => <li className="chip" key={skill}>{skill}</li>)}
+          </ul>
+        ) : (
+          <p className="muted">No structured skills were provided for this listing. Check the description for requirements.</p>
+        )}
+      </section>
 
       <section className="section">
         <h2>Feedback</h2>

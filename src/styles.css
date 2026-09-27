@@ -263,11 +263,13 @@ h4 {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1.1rem 1.2rem;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 0.9rem;
 }
 
@@ -294,7 +296,7 @@ h4 {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 1rem;
 }
 
@@ -581,6 +583,8 @@ h4 {
   border: 1px solid transparent;
   color: var(--text);
   font-size: 0.8rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .chip--removable {
@@ -665,6 +669,35 @@ h4 {
 .job-card__pay-note,
 .job-card__research {
   margin: 0;
+}
+
+.job-card__description {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  font-size: 0.85rem;
+}
+
+.job-card__skills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.job-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+  max-width: 75ch;
+}
+
+.mobile-menu-toggle {
+  display: none;
 }
 
 .bulk-actions {
@@ -1036,9 +1069,12 @@ h4 {
   .sidebar {
     width: 100%;
     height: auto;
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 50;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.5rem 0.75rem;
@@ -1048,20 +1084,38 @@ h4 {
     margin-bottom: 0;
   }
 
-  .sidebar__nav {
+  .mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .sidebar__nav,
+  .sidebar__foot {
+    display: none;
     width: 100%;
+  }
+
+  .sidebar--open .sidebar__nav,
+  .sidebar--open .sidebar__foot {
+    display: flex;
+  }
+
+  .sidebar--open .sidebar__nav {
+    max-height: 40dvh;
+    overflow-y: auto;
   }
 
   .sidebar__profiles {
     max-height: 8rem;
   }
 
+  .sidebar__user {
+    min-width: 0;
+  }
+
   .sidebar__foot {
     margin-top: 0;
-    flex-direction: row;
-    align-items: center;
-    border-top: none;
-    padding-top: 0;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .notif__panel {
@@ -1070,10 +1124,99 @@ h4 {
     bottom: auto;
     top: calc(100% + 0.5rem);
     width: auto;
-    max-width: none;
+    max-width: min(360px, calc(100vw - 1.5rem));
   }
 
   .app-main {
-    padding: 1.5rem 1.25rem 3rem;
+    padding: 1.25rem 0.75rem 3rem;
+  }
+
+  .card {
+    padding: 0.9rem;
+  }
+
+  .list__item,
+  .tracked-company,
+  .re-entries__head,
+  .re-entry__head {
+    flex-wrap: wrap;
+  }
+
+  .list__item > div,
+  .tracked-company > div,
+  .job-card__head > div {
+    min-width: 0;
+  }
+
+  .job-card__head {
+    flex-wrap: wrap;
+  }
+
+  .job-card__badges {
+    justify-content: flex-start;
+  }
+
+  .page__head h1,
+  .profile-card h3,
+  .job-card h3,
+  .notif__item {
+    overflow-wrap: anywhere;
+  }
+
+  .inline-input {
+    width: 100%;
+  }
+
+  .hour {
+    min-height: 44px;
+  }
+
+  .btn,
+  .nav-link {
+    min-height: 44px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .inline-input {
+    font-size: 16px;
+  }
+
+  .checkbox {
+    min-height: 44px;
+  }
+
+  .notif__delete {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .job-search__form .field,
+  .job-search__form .btn,
+  .filters .field,
+  .filters .checkbox {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .page__head-actions,
+  .job-card__actions,
+  .form-actions {
+    width: 100%;
+  }
+
+  .resume-frame {
+    min-height: 320px;
+    height: 55dvh;
+  }
+
+  .toast-stack {
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .toast {
+    max-width: 100%;
   }
 }
