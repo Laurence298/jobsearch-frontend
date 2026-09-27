@@ -23,6 +23,7 @@ export default function ProfileJobs() {
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
   const [remoteOnly, setRemoteOnly] = useState(false)
+  const [searchResult, setSearchResult] = useState(null)
 
   const profileQuery = useQuery({
     queryKey: ['profile', id],
@@ -39,30 +40,38 @@ export default function ProfileJobs() {
     queryFn: () => listJobs(id, date === '' ? undefined : date),
   })
 
-  function handleSearchSuccess(result) {
+  function handleSearchSuccess(result, label) {
+    setSearchResult({
+      profileId: id,
+      ids: result.jobs.map((job) => job.id),
+      newJobs: result.new_jobs,
+      budgetExhausted: result.jsearch_budget_exhausted,
+      label,
+    })
+    // SearchResponse.jobs may include matches saved on earlier days.
+    setDate('')
     queryClient.invalidateQueries({ queryKey: ['jobs', id] })
     queryClient.invalidateQueries({ queryKey: ['jobDates', id] })
     queryClient.invalidateQueries({ queryKey: ['profile', id] })
     queryClient.invalidateQueries({ queryKey: ['profiles'] })
     const count = result?.new_jobs ?? 0
     notify(
-      count > 0 ? `${count} new job(s) found` : 'Search complete — no new jobs',
+      count > 0
+        ? `${count} new job(s) saved from ${result.jobs.length} match(es)`
+        : `${result.jobs.length} match(es) found — no new jobs saved`,
       count > 0 ? 'success' : 'info',
     )
-    if (result?.jsearch_budget_exhausted) {
-      notify('JSearch budget exhausted — showing tracked companies + cached results only', 'info')
-    }
   }
 
   const searchMutation = useMutation({
-    mutationFn: (search) => searchJobs(id, search),
-    onSuccess: handleSearchSuccess,
+    mutationFn: () => searchJobs(id),
+    onSuccess: (result) => handleSearchSuccess(result, 'Saved-keyword results'),
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
   const unifiedMutation = useMutation({
     mutationFn: (search) => unifiedSearch(id, search),
-    onSuccess: handleSearchSuccess,
+    onSuccess: (result, search) => handleSearchSuccess(result, `Results for “${search.q}”`),
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
@@ -109,11 +118,15 @@ export default function ProfileJobs() {
     })
   }, [jobs, publisher, source, keyword, remoteOnly])
 
-  function handleSearchNow() {
-    searchMutation.mutate({ query: query.trim() || undefined })
-  }
+  const activeSearch = searchResult?.profileId === id ? searchResult : null
+  const visibleJobs = useMemo(() => {
+    if (!activeSearch) return filtered
+    const byId = new Map(filtered.map((job) => [job.id, job]))
+    return activeSearch.ids.map((jobId) => byId.get(jobId)).filter(Boolean)
+  }, [activeSearch, filtered])
 
-  function handleUnifiedSearch() {
+  function handleUnifiedSearch(event) {
+    event.preventDefault()
     const q = query.trim()
     if (!q) {
       notify('Enter a search query first', 'error')
@@ -124,6 +137,7 @@ export default function ProfileJobs() {
 
   const hasJobsOnOtherDates =
     datesQuery.isSuccess && datesQuery.data.some((entry) => entry.date !== date)
+  const searching = searchMutation.isPending || unifiedMutation.isPending
 
   return (
     <div className="page">
@@ -142,42 +156,87 @@ export default function ProfileJobs() {
               : ''}
           </p>
         </div>
-        <div className="page__head-actions">
-          <input
-            className="inline-input"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search query"
-          />
-          <input
-            className="inline-input"
-            value={locationQ}
-            onChange={(event) => setLocationQ(event.target.value)}
-            placeholder="Location (optional)"
-          />
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={handleUnifiedSearch}
-            disabled={unifiedMutation.isPending}
-          >
-            {unifiedMutation.isPending ? 'Searching…' : 'Search'}
+      </header>
+
+      <section className="card job-search" aria-label="Find jobs">
+        <form className="job-search__form" onSubmit={handleUnifiedSearch}>
+          <label className="field">
+            <span>Search roles</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Developer, data analyst or tester"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Location (optional)</span>
+            <input
+              value={locationQ}
+              onChange={(event) => setLocationQ(event.target.value)}
+              placeholder="Calgary, Alberta"
+            />
+          </label>
+          <button type="submit" className="btn btn--primary" disabled={searching}>
+            {unifiedMutation.isPending ? 'Searching…' : 'Search roles'}
           </button>
+        </form>
+        <p className="muted">
+          Separate roles with commas or “or”. Each term searches separately and uses search quota;
+          tracked-company results are included.
+        </p>
+        <div className="job-search__actions">
           <button
             type="button"
             className="btn"
-            onClick={handleSearchNow}
-            disabled={searchMutation.isPending}
+            onClick={() => searchMutation.mutate()}
+            disabled={searching || !profileQuery.data?.keywords?.length}
           >
-            {searchMutation.isPending ? 'Running…' : 'Run full search'}
+            {searchMutation.isPending ? 'Searching…' : 'Run saved keywords'}
+          </button>
+          {profileQuery.isSuccess && !profileQuery.data.keywords?.length && (
+            <Link to={`/profiles/${id}`} className="muted">
+              Add keywords to run a profile search
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {activeSearch && (
+        <div className="card search-summary" role="status">
+          <div>
+            <strong>{activeSearch.label} · {activeSearch.ids.length} match(es)</strong>
+            <p className="muted">{activeSearch.newJobs} new job(s) saved</p>
+            {activeSearch.budgetExhausted && (
+              <p className="alert alert--warning">
+                JSearch daily budget reached. Further searches may only use tracked companies
+                and cached jobs.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setSearchResult(null)
+              setDate(today)
+            }}
+          >
+            Show saved jobs
           </button>
         </div>
-      </header>
+      )}
 
       <div className="filters card">
         <label className="field">
           <span>Saved on</span>
-          <select value={date} onChange={(event) => setDate(event.target.value)}>
+          <select
+            value={date}
+            onChange={(event) => {
+              setDate(event.target.value)
+              setSearchResult(null)
+            }}
+          >
             <option value="">All dates</option>
             {dateOptions.map((option) => (
               <option key={option} value={option}>
@@ -237,21 +296,33 @@ export default function ProfileJobs() {
         <div className="alert alert--error">{apiErrorMessage(jobsQuery.error)}</div>
       )}
 
-      {jobsQuery.isSuccess && filtered.length === 0 && (
+      {jobsQuery.isSuccess && visibleJobs.length === 0 && (
         <div className="card empty-state">
-          <h3>{jobs.length === 0 ? 'No jobs yet' : 'No jobs match your filters'}</h3>
+          <h3>
+            {activeSearch
+              ? activeSearch.ids.length === 0
+                ? 'No matches found'
+                : 'No jobs match your filters'
+              : jobs.length === 0
+                ? 'No jobs yet'
+                : 'No jobs match your filters'}
+          </h3>
           <p className="muted">
-            {jobs.length === 0
-              ? hasJobsOnOtherDates
-                ? 'Nothing saved on this day. Pick another date above to see earlier jobs.'
-                : 'Run a search to pull listings for this profile.'
-              : 'Try clearing the filters above.'}
+            {activeSearch && activeSearch.ids.length === 0
+              ? activeSearch.budgetExhausted
+                ? 'Try again when the daily JSearch budget resets, or browse your saved jobs.'
+                : 'Try broader roles or a different location.'
+              : jobs.length === 0
+                ? hasJobsOnOtherDates
+                  ? 'Nothing saved on this day. Pick another date above to see earlier jobs.'
+                  : 'Run a search to pull listings for this profile.'
+                : 'Try clearing the filters above.'}
           </p>
         </div>
       )}
 
       <div className="grid">
-        {filtered.map((job) => (
+        {visibleJobs.map((job) => (
           <JobCard key={job.id} job={job} />
         ))}
       </div>

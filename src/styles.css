@@ -134,6 +134,30 @@ h4 {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  min-width: 0;
+}
+
+.sidebar__profiles {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0 0 0 0.7rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.sidebar__profile {
+  min-width: 0;
+}
+
+.sidebar__profile-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-link {
@@ -642,6 +666,43 @@ h4 {
   flex-wrap: wrap;
 }
 
+.job-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.job-search__form,
+.job-search__actions,
+.search-summary {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.job-search__form .field {
+  flex: 1 1 200px;
+}
+
+.job-search__form .btn {
+  min-height: 36px;
+}
+
+.job-search__actions {
+  align-items: center;
+}
+
+.job-search .muted,
+.search-summary .muted {
+  margin: 0;
+}
+
+.search-summary {
+  justify-content: space-between;
+  align-items: center;
+}
+
 .filters .field {
   min-width: 180px;
 }
@@ -933,7 +994,11 @@ h4 {
   }
 
   .sidebar__nav {
-    flex-direction: row;
+    width: 100%;
+  }
+
+  .sidebar__profiles {
+    max-height: 8rem;
   }
 
   .sidebar__foot {

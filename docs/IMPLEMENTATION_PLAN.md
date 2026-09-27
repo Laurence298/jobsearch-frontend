@@ -32,7 +32,9 @@ Legend: [x] implemented · [ ] planned/deferred
       `GET /jobs?date=YYYY-MM-DD`, defaulting the UI to today
 - [x] Search (`POST /jobs/search`) with query + `date_posted`/`auto_tailor`/`publishers`
       options, budget-exhausted notice, corrected `new_jobs` count
-- [x] Unified search (`GET /jobs/search?q=&location=`) merging tracked ATS boards + JSearch
+- [x] Unified search (`GET /jobs/search?q=&location=`) with comma/“or”-separated
+      role terms searched independently; shows returned matches (including older saved
+      jobs) and budget status separately from the saved-by-date view
 - [x] Delete job (`DELETE /jobs/{id}`) with confirmation
 - [x] Feedback loop (`POST /jobs/{id}/feedback`) — saved / applied / not_interested +
       status display
