@@ -373,6 +373,11 @@ h4 {
   font-weight: 500;
 }
 
+.hour:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .inline-input {
   width: 230px;
 }
@@ -617,6 +622,17 @@ h4 {
 .job-card__meta dd {
   margin: 0.1rem 0 0;
   font-size: 0.85rem;
+}
+
+.job-card__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.job-card--dismissed {
+  opacity: 0.55;
 }
 
 .filters {

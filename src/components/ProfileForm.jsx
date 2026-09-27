@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 const SEARCH_WINDOW_START = 8
 const SEARCH_WINDOW_END = 21
+const MAX_SELECTABLE_HOURS = 3
 
 const HOURS = Array.from(
   { length: SEARCH_WINDOW_END - SEARCH_WINDOW_START + 1 },
@@ -45,12 +46,17 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
   }
 
   function toggleHour(hour, checked) {
-    setValues((current) => ({
-      ...current,
-      search_hours: checked
-        ? [...current.search_hours, hour].sort((a, b) => a - b)
-        : current.search_hours.filter((entry) => entry !== hour),
-    }))
+    setValues((current) => {
+      if (checked && current.search_hours.length >= MAX_SELECTABLE_HOURS) {
+        return current
+      }
+      return {
+        ...current,
+        search_hours: checked
+          ? [...current.search_hours, hour].sort((a, b) => a - b)
+          : current.search_hours.filter((entry) => entry !== hour),
+      }
+    })
   }
 
   function handleSubmit(event) {
@@ -155,11 +161,11 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
         </label>
 
         <label className="field">
-          <span>Searches per day (1–{HOURS.length})</span>
+          <span>Searches per day (1–{MAX_SELECTABLE_HOURS})</span>
           <input
             type="number"
             min="1"
-            max={HOURS.length}
+            max={MAX_SELECTABLE_HOURS}
             value={values.searches_per_day}
             onChange={(event) => setField('searches_per_day', event.target.value)}
             required
@@ -179,18 +185,23 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
         </label>
 
         <fieldset className="field field--wide">
-          <legend>Search hours (8am–9pm, local time)</legend>
+          <legend>Search hours (8am–9pm, local time — up to {MAX_SELECTABLE_HOURS})</legend>
           <div className="hour-picker">
-            {HOURS.map((hour) => (
-              <label key={hour} className="hour">
-                <input
-                  type="checkbox"
-                  checked={values.search_hours.includes(hour)}
-                  onChange={(event) => toggleHour(hour, event.target.checked)}
-                />
-                <span>{formatHour(hour)}</span>
-              </label>
-            ))}
+            {HOURS.map((hour) => {
+              const selected = values.search_hours.includes(hour)
+              const full = values.search_hours.length >= MAX_SELECTABLE_HOURS
+              return (
+                <label key={hour} className="hour">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    disabled={!selected && full}
+                    onChange={(event) => toggleHour(hour, event.target.checked)}
+                  />
+                  <span>{formatHour(hour)}</span>
+                </label>
+              )
+            })}
           </div>
         </fieldset>
 

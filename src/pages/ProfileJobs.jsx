@@ -68,11 +68,16 @@ export default function ProfileJobs() {
 
   const jobs = jobsQuery.data ?? NO_JOBS
 
+  const dateCounts = useMemo(
+    () => new Map((datesQuery.data ?? []).map((entry) => [entry.date, entry.count])),
+    [datesQuery.data],
+  )
+
   const dateOptions = useMemo(() => {
-    const additions = new Set((datesQuery.data ?? []).map((entry) => entry.date))
+    const additions = new Set(dateCounts.keys())
     if (date !== '') additions.add(today)
     return Array.from(additions).sort().reverse()
-  }, [datesQuery.data, date, today])
+  }, [dateCounts, date, today])
 
   const publishers = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.publisher).filter(Boolean))).sort(),
@@ -116,6 +121,9 @@ export default function ProfileJobs() {
     }
     unifiedMutation.mutate({ q, location: locationQ.trim() || undefined })
   }
+
+  const hasJobsOnOtherDates =
+    datesQuery.isSuccess && datesQuery.data.some((entry) => entry.date !== date)
 
   return (
     <div className="page">
@@ -174,6 +182,7 @@ export default function ProfileJobs() {
             {dateOptions.map((option) => (
               <option key={option} value={option}>
                 {option === today ? 'Today' : formatDate(option)}
+                {dateCounts.has(option) ? ` (${dateCounts.get(option)})` : ''}
               </option>
             ))}
           </select>
@@ -233,7 +242,9 @@ export default function ProfileJobs() {
           <h3>{jobs.length === 0 ? 'No jobs yet' : 'No jobs match your filters'}</h3>
           <p className="muted">
             {jobs.length === 0
-              ? 'Run a search to pull listings for this profile.'
+              ? hasJobsOnOtherDates
+                ? 'Nothing saved on this day. Pick another date above to see earlier jobs.'
+                : 'Run a search to pull listings for this profile.'
               : 'Try clearing the filters above.'}
           </p>
         </div>

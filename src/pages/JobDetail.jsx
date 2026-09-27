@@ -5,19 +5,7 @@ import { apiErrorMessage } from '../api/client.js'
 import { useToast } from '../components/Toast.jsx'
 import TailoredResumePanel from '../components/TailoredResumePanel.jsx'
 import { formatDate } from '../lib/format.js'
-
-const FEEDBACK_OPTIONS = [
-  { value: 'saved', label: 'Save' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'not_interested', label: 'Not interested' },
-]
-
-const STATUS_LABELS = {
-  new: 'New',
-  saved: 'Saved',
-  applied: 'Applied',
-  not_interested: 'Not interested',
-}
+import { FEEDBACK_OPTIONS, STATUS_LABELS } from '../lib/jobStatus.js'
 
 export default function JobDetail() {
   const { id } = useParams()
@@ -99,7 +87,13 @@ export default function JobDetail() {
         </div>
         <div className="page__head-actions">
           {job.url && (
-            <a className="btn btn--primary" href={job.url} target="_blank" rel="noreferrer">
+            <a
+              className="btn btn--primary"
+              href={job.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => feedbackMutation.mutate('applied')}
+            >
               Apply
             </a>
           )}
