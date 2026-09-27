@@ -18,7 +18,7 @@ export default function ProfileJobs() {
   const today = localDateString()
   const [query, setQuery] = useState('')
   const [locationQ, setLocationQ] = useState('')
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState('')
   const [publisher, setPublisher] = useState('all')
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
@@ -84,9 +84,9 @@ export default function ProfileJobs() {
 
   const dateOptions = useMemo(() => {
     const additions = new Set(dateCounts.keys())
-    if (date !== '') additions.add(today)
+    additions.add(today)
     return Array.from(additions).sort().reverse()
-  }, [dateCounts, date, today])
+  }, [dateCounts, today])
 
   const publishers = useMemo(
     () => Array.from(new Set(jobs.map((job) => job.publisher).filter(Boolean))).sort(),
@@ -136,7 +136,7 @@ export default function ProfileJobs() {
   }
 
   const hasJobsOnOtherDates =
-    datesQuery.isSuccess && datesQuery.data.some((entry) => entry.date !== date)
+    date !== '' && datesQuery.isSuccess && datesQuery.data.some((entry) => entry.date !== date)
   const searching = searchMutation.isPending || unifiedMutation.isPending
 
   return (
@@ -219,7 +219,7 @@ export default function ProfileJobs() {
             className="btn"
             onClick={() => {
               setSearchResult(null)
-              setDate(today)
+              setDate('')
             }}
           >
             Show saved jobs
@@ -315,7 +315,7 @@ export default function ProfileJobs() {
               : jobs.length === 0
                 ? hasJobsOnOtherDates
                   ? 'Nothing saved on this day. Pick another date above to see earlier jobs.'
-                  : 'Run a search to pull listings for this profile.'
+                  : 'No saved jobs for this profile. Search for roles above, or add keywords and run a profile search.'
                 : 'Try clearing the filters above.'}
           </p>
         </div>

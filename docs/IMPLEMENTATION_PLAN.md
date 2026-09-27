@@ -29,7 +29,7 @@ Legend: [x] implemented · [ ] planned/deferred
 
 ### Jobs
 - [x] List (`GET /jobs?profile_id=`) grouped by save date — `GET /jobs/dates` menu +
-      `GET /jobs?date=YYYY-MM-DD`, defaulting the UI to today
+      `GET /jobs?date=YYYY-MM-DD`; default to all dates so earlier jobs aren't hidden
 - [x] Search (`POST /jobs/search`) with query + `date_posted`/`auto_tailor`/`publishers`
       options, budget-exhausted notice, corrected `new_jobs` count
 - [x] Unified search (`GET /jobs/search?q=&location=`) with comma/“or”-separated
@@ -69,8 +69,9 @@ npm run build     # vite build passes
 ```
 
 Dev server binds to `0.0.0.0` (`vite.config.js` `server.host: true`) so it is
-reachable from other devices on the network; set `VITE_API_BASE_URL` to the backend's
-LAN address.
+reachable from other devices on the network. Use same-origin `/api` for browser
+requests; set `VITE_DEV_API_TARGET` to the backend's LAN address when developing
+against a remote server. The Docker frontend proxies `/api` to `jobtracker-app:8000`.
 
 ---
 
@@ -79,4 +80,4 @@ LAN address.
 - Multi-step create wizard (`/profiles/new` currently shows "Step 1 of 3")
 - Per-item delete in profile/job lists is present; bulk actions not needed
 - Resume PDF/DOCX parsing stays client-side until backend support lands
-- Admin API base URL runtime override (`window.__APP_CONFIG__`) is wired but untested
+- Verify the Docker `/api` proxy end-to-end after redeployment

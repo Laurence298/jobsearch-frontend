@@ -1,6 +1,9 @@
 export function formatDate(value) {
   if (!value) return '—'
-  const date = new Date(value)
+  // Saved-job dates are YYYY-MM-DD calendar dates, not UTC instants.
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, {
     year: 'numeric',

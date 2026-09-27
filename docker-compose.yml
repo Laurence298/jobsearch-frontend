@@ -3,16 +3,15 @@ services:
     build:
       context: .
       args:
-        # Optional build-time default; API_BASE_URL below overrides it at runtime.
+        # Optional build-time default; Docker uses the runtime /api path below.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     image: jobtracker-web
     pull_policy: build
     container_name: jobtracker-web
     environment:
-      # Point this at the backend. For Nginx Proxy Manager, either use a
-      # shared docker network name (http://jobtracker-app:8000) or a public
-      # API URL (https://jobtracker-api.example.com).
-      API_BASE_URL: ${API_BASE_URL:-}
+      # Browser-visible URL, not a Docker hostname. /api stays on the frontend
+      # origin; nginx.conf forwards it to jobtracker-app over shared-proxy.
+      API_BASE_URL: ${API_BASE_URL:-/api}
     networks:
       # Join the reverse-proxy network so the proxy can reach jobtracker-web:80.
       - shared-proxy

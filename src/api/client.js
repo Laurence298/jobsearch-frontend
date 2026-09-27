@@ -5,7 +5,7 @@ export const TOKEN_KEY = 'jobtracker_token'
 function resolveBaseUrl() {
   const runtime = window.__APP_CONFIG__?.apiBaseUrl
   const buildTime = import.meta.env.VITE_API_BASE_URL
-  return (runtime || buildTime || 'http://localhost:8000').replace(/\/$/, '')
+  return (runtime || buildTime || '/api').replace(/\/$/, '')
 }
 
 const baseURL = resolveBaseUrl()
@@ -42,8 +42,11 @@ export function apiErrorMessage(error) {
   if (Array.isArray(detail)) {
     return detail.map((item) => item.msg || JSON.stringify(item)).join(', ')
   }
+  if ([502, 503, 504].includes(error?.response?.status)) {
+    return `The API at ${baseURL} is temporarily unavailable. Check the backend and proxy.`
+  }
   if (error?.code === 'ERR_NETWORK') {
-    return `Cannot reach the API at ${baseURL}. Is the backend running?`
+    return `Cannot connect to ${baseURL}. Check the API URL, network, HTTPS and CORS settings.`
   }
   return error?.message || 'Something went wrong'
 }
