@@ -29,18 +29,64 @@ export async function listResumes(id) {
   return data
 }
 
-export async function uploadResume(id, { text, file }) {
+export async function uploadResume(id, { text, file, label }) {
   const form = new FormData()
   if (file) {
     form.append('file', file)
   } else {
     form.append('text', text)
   }
+  if (label) {
+    form.append('label', label)
+  }
   const { data } = await client.post(`/profiles/${id}/resume`, form)
   return data
 }
 
+export async function deleteResume(profileId, resumeId) {
+  await client.delete(`/profiles/${profileId}/resumes/${resumeId}`)
+}
+
 export async function generateKeywords(id) {
   const { data } = await client.post(`/profiles/${id}/keywords`)
+  return data
+}
+
+export async function setKeywords(id, items) {
+  const { data } = await client.put(`/profiles/${id}/keywords`, { items })
+  return data
+}
+
+export async function addKeyword(id, keyword) {
+  const { data } = await client.post(`/profiles/${id}/keywords/add`, { keyword })
+  return data
+}
+
+export async function removeKeyword(id, keyword) {
+  const { data } = await client.delete(`/profiles/${id}/keywords`, {
+    params: { keyword },
+  })
+  return data
+}
+
+export async function generateSkills(id) {
+  const { data } = await client.post(`/profiles/${id}/skills`)
+  return data
+}
+
+export async function setSkills(id, items) {
+  const { data } = await client.put(`/profiles/${id}/skills`, { items })
+  return data
+}
+
+export async function addSkill(id, skill) {
+  const { data } = await client.post(`/profiles/${id}/skills/add`, { skill })
+  return data
+}
+
+export async function removeSkill(id, skill) {
+  const { data } = await client.delete(`/profiles/${id}/skills`, {
+    params: { skill },
+  })
   return data
 }

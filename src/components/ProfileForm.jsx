@@ -10,10 +10,30 @@ const EMPTY = {
   experience_level: 'mid',
   searches_per_day: 3,
   jobs_per_search: 20,
+  date_posted: 'today',
+  auto_tailor: true,
+  notify_new_jobs: true,
+  search_hours: '',
+  timezone: '',
+}
+
+function splitHours(value) {
+  if (Array.isArray(value)) return value
+  return String(value ?? '')
+    .split(/[\s,]+/)
+    .map((hour) => parseInt(hour, 10))
+    .filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23)
+    .filter((hour, index, all) => all.indexOf(hour) === index)
 }
 
 export default function ProfileForm({ initialValues, onSubmit, submitLabel, submitting }) {
-  const [values, setValues] = useState(() => ({ ...EMPTY, ...initialValues }))
+  const [values, setValues] = useState(() => ({
+    ...EMPTY,
+    ...initialValues,
+    search_hours: Array.isArray(initialValues?.search_hours)
+      ? initialValues.search_hours.join(', ')
+      : initialValues?.search_hours ?? '',
+  }))
 
   function setField(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -25,6 +45,10 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
       ...values,
       searches_per_day: Number(values.searches_per_day),
       jobs_per_search: Number(values.jobs_per_search),
+      auto_tailor: Boolean(values.auto_tailor),
+      notify_new_jobs: Boolean(values.notify_new_jobs),
+      search_hours: splitHours(values.search_hours),
+      timezone: values.timezone?.trim() ? values.timezone.trim() : null,
     })
   }
 
@@ -103,6 +127,20 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
         </label>
 
         <label className="field">
+          <span>Listing recency</span>
+          <select
+            value={values.date_posted}
+            onChange={(event) => setField('date_posted', event.target.value)}
+          >
+            <option value="today">Last 24 hours</option>
+            <option value="3days">Last 3 days</option>
+            <option value="week">Last week</option>
+            <option value="month">Last month</option>
+            <option value="all">All time</option>
+          </select>
+        </label>
+
+        <label className="field">
           <span>Searches per day (1–3)</span>
           <input
             type="number"
@@ -124,6 +162,42 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
             onChange={(event) => setField('jobs_per_search', event.target.value)}
             required
           />
+        </label>
+
+        <label className="field">
+          <span>Search hours (comma-separated, 0–23)</span>
+          <input
+            value={values.search_hours}
+            onChange={(event) => setField('search_hours', event.target.value)}
+            placeholder="7, 15, 23"
+          />
+        </label>
+
+        <label className="field">
+          <span>Timezone (IANA)</span>
+          <input
+            value={values.timezone}
+            onChange={(event) => setField('timezone', event.target.value)}
+            placeholder="America/Edmonton"
+          />
+        </label>
+
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={values.auto_tailor}
+            onChange={(event) => setField('auto_tailor', event.target.checked)}
+          />
+          <span>Auto-tailor resumes for new jobs</span>
+        </label>
+
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={values.notify_new_jobs}
+            onChange={(event) => setField('notify_new_jobs', event.target.checked)}
+          />
+          <span>Notify me on new jobs</span>
         </label>
       </div>
 

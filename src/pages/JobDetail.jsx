@@ -1,32 +1,50 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { listJobs, tailorResume } from '../api/jobs.js'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { deleteJob, listJobs, setFeedback } from '../api/jobs.js'
 import { apiErrorMessage } from '../api/client.js'
 import { useToast } from '../components/Toast.jsx'
-import { downloadText, formatDateTime } from '../lib/format.js'
+import TailoredResumePanel from '../components/TailoredResumePanel.jsx'
+import { formatDate } from '../lib/format.js'
 
-function extractResumeText(data) {
-  if (!data) return ''
-  if (typeof data === 'string') return data
-  return data.resume ?? data.tailored_resume ?? data.text ?? JSON.stringify(data, null, 2)
+const FEEDBACK_OPTIONS = [
+  { value: 'saved', label: 'Save' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'not_interested', label: 'Not interested' },
+]
+
+const STATUS_LABELS = {
+  new: 'New',
+  saved: 'Saved',
+  applied: 'Applied',
+  not_interested: 'Not interested',
 }
 
 export default function JobDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { notify } = useToast()
-  const [tailored, setTailored] = useState('')
 
   const jobsQuery = useQuery({
     queryKey: ['jobs'],
     queryFn: () => listJobs(),
   })
 
-  const tailorMutation = useMutation({
-    mutationFn: () => tailorResume(id),
-    onSuccess: (data) => {
-      setTailored(extractResumeText(data))
-      notify('Tailored resume ready', 'success')
+  const feedbackMutation = useMutation({
+    mutationFn: (status) => setFeedback(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs', jobsQuery.data?.find((j) => String(j.id) === String(id))?.profile_id].filter(Boolean) })
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteJob(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      notify('Job deleted', 'success')
+      navigate(-1)
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -59,6 +77,12 @@ export default function JobDetail() {
     )
   }
 
+  function handleDelete() {
+    if (window.confirm('Delete this job and its tailored resume?')) {
+      deleteMutation.mutate()
+    }
+  }
+
   return (
     <div className="page">
       <header className="page__head">
@@ -75,22 +99,33 @@ export default function JobDetail() {
         </div>
         <div className="page__head-actions">
           {job.url && (
+            <a className="btn btn--primary" href={job.url} target="_blank" rel="noreferrer">
+              Apply
+            </a>
+          )}
+          {job.url && (
             <a className="btn" href={job.url} target="_blank" rel="noreferrer">
               Open listing
             </a>
           )}
           <button
             type="button"
-            className="btn btn--primary"
-            onClick={() => tailorMutation.mutate()}
-            disabled={tailorMutation.isPending}
+            className="btn btn--danger"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
           >
-            {tailorMutation.isPending ? 'Tailoring…' : 'Tailor my resume'}
+            Delete
           </button>
         </div>
       </header>
 
       <dl className="stat-row card">
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <span className="badge badge--soft">{STATUS_LABELS[job.status] ?? job.status}</span>
+          </dd>
+        </div>
         {job.matched_keyword && (
           <div>
             <dt>Matched keyword</dt>
@@ -98,41 +133,60 @@ export default function JobDetail() {
           </div>
         )}
         <div>
-          <dt>Added</dt>
-          <dd>{formatDateTime(job.created_at)}</dd>
+          <dt>Posted</dt>
+          <dd>{formatDate(job.posted_at)}</dd>
         </div>
-        {job.profile_id != null && (
+        {job.salary && (
           <div>
-            <dt>Profile</dt>
-            <dd>
-              <Link to={`/profiles/${job.profile_id}`}>#{job.profile_id}</Link>
-            </dd>
+            <dt>Salary</dt>
+            <dd>{job.salary}</dd>
+          </div>
+        )}
+        {job.source && (
+          <div>
+            <dt>Source</dt>
+            <dd>{job.source}</dd>
           </div>
         )}
       </dl>
 
-      {job.description && (
+      {job.matched_skills && job.matched_skills.length > 0 && (
         <section className="section">
-          <h2>Description</h2>
-          <div className="card prose">{job.description}</div>
+          <h2>Matched skills</h2>
+          <ul className="chips">
+            {job.matched_skills.map((skill) => (
+              <li key={skill} className="chip chip--skill">
+                {skill}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
-      {tailored && (
-        <section className="section">
-          <div className="section__head">
-            <h2>Tailored resume</h2>
+      <section className="section">
+        <h2>Feedback</h2>
+        <div className="page__head-actions">
+          {FEEDBACK_OPTIONS.filter((option) => option.value !== job.status).map((option) => (
             <button
+              key={option.value}
               type="button"
               className="btn"
-              onClick={() => downloadText(`tailored-resume-job-${job.id}.txt`, tailored)}
+              onClick={() => {
+                feedbackMutation.mutate(option.value)
+                notify(`Marked as ${option.label.toLowerCase()}`, 'success')
+              }}
+              disabled={feedbackMutation.isPending}
             >
-              Download .txt
+              {option.label}
             </button>
-          </div>
-          <pre className="resume-output">{tailored}</pre>
-        </section>
-      )}
+          ))}
+        </div>
+        <p className="muted">
+          Feedback helps rank future searches across job sites and queries.
+        </p>
+      </section>
+
+      <TailoredResumePanel jobId={job.id} profileId={job.profile_id} />
     </div>
   )
 }

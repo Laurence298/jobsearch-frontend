@@ -17,6 +17,7 @@ export default function ProfileJobs() {
 
   const [query, setQuery] = useState('')
   const [publisher, setPublisher] = useState('all')
+  const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
   const [remoteOnly, setRemoteOnly] = useState(false)
 
@@ -31,13 +32,19 @@ export default function ProfileJobs() {
   })
 
   const searchMutation = useMutation({
-    mutationFn: (searchQuery) => searchJobs(id, searchQuery),
+    mutationFn: (search) => searchJobs(id, search),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['jobs', id] })
       queryClient.invalidateQueries({ queryKey: ['profile', id] })
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
-      const count = result?.new_jobs?.length ?? result?.new ?? 0
-      notify(count > 0 ? `${count} new job(s) found` : 'Search complete — no new jobs', 'success')
+      const count = result?.new_jobs ?? 0
+      notify(
+        count > 0 ? `${count} new job(s) found` : 'Search complete — no new jobs',
+        count > 0 ? 'success' : 'info',
+      )
+      if (result?.jsearch_budget_exhausted) {
+        notify('JSearch budget exhausted — showing tracked companies + cached results only', 'info')
+      }
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -49,9 +56,15 @@ export default function ProfileJobs() {
     [jobs],
   )
 
+  const sources = useMemo(
+    () => Array.from(new Set(jobs.map((job) => job.source).filter(Boolean))).sort(),
+    [jobs],
+  )
+
   const filtered = useMemo(() => {
     return jobs.filter((job) => {
       if (publisher !== 'all' && job.publisher !== publisher) return false
+      if (source !== 'all' && job.source !== source) return false
       if (
         keyword &&
         !`${job.matched_keyword ?? ''}`.toLowerCase().includes(keyword.toLowerCase())
@@ -59,17 +72,17 @@ export default function ProfileJobs() {
         return false
       }
       if (remoteOnly) {
-        const remote =
-          job.is_remote === true ||
-          `${job.location ?? ''} ${job.title ?? ''}`.toLowerCase().includes('remote')
+        const remote = `${job.location ?? ''} ${job.title ?? ''}`
+          .toLowerCase()
+          .includes('remote')
         if (!remote) return false
       }
       return true
     })
-  }, [jobs, publisher, keyword, remoteOnly])
+  }, [jobs, publisher, source, keyword, remoteOnly])
 
   function handleSearchNow() {
-    searchMutation.mutate(query.trim() || undefined)
+    searchMutation.mutate({ query: query.trim() || undefined })
   }
 
   return (
@@ -113,6 +126,18 @@ export default function ProfileJobs() {
           <select value={publisher} onChange={(event) => setPublisher(event.target.value)}>
             <option value="all">All</option>
             {publishers.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Source</span>
+          <select value={source} onChange={(event) => setSource(event.target.value)}>
+            <option value="all">All</option>
+            {sources.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>

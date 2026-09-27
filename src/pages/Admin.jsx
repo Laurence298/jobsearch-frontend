@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -10,8 +11,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getAdminStats } from '../api/admin.js'
+import {
+  addAllowedEmail,
+  deleteAllowedEmail,
+  getAdminStats,
+  listAllowedEmails,
+} from '../api/admin.js'
 import { apiErrorMessage } from '../api/client.js'
+import { useToast } from '../components/Toast.jsx'
 import { formatDateTime } from '../lib/format.js'
 
 const EMPTY = []
@@ -49,10 +56,45 @@ function DataTable({ title, columns, rows, empty = 'No data yet' }) {
 }
 
 export default function Admin() {
+  const queryClient = useQueryClient()
+  const { notify } = useToast()
+  const [newEmail, setNewEmail] = useState('')
+
   const statsQuery = useQuery({
     queryKey: ['adminStats'],
     queryFn: getAdminStats,
   })
+
+  const allowedQuery = useQuery({
+    queryKey: ['allowedEmails'],
+    queryFn: listAllowedEmails,
+  })
+
+  const addEmailMutation = useMutation({
+    mutationFn: (email) => addAllowedEmail(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allowedEmails'] })
+      setNewEmail('')
+      notify('Email approved', 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const removeEmailMutation = useMutation({
+    mutationFn: (email) => deleteAllowedEmail(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allowedEmails'] })
+      notify('Email removed', 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  function handleAddEmail(event) {
+    event.preventDefault()
+    const email = newEmail.trim()
+    if (!email) return
+    addEmailMutation.mutate(email)
+  }
 
   if (statsQuery.isLoading) {
     return <div className="page-loading">Loading stats…</div>
@@ -84,6 +126,50 @@ export default function Admin() {
           <p className="muted">Global activity across all users and profiles.</p>
         </div>
       </header>
+
+      <section className="section">
+        <h2>Sign-up allowlist</h2>
+        <p className="muted">
+          Approve an email here so its owner can register. Registration is invite-only.
+        </p>
+        <form className="card form" onSubmit={handleAddEmail}>
+          <div className="editable-chips__add">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(event) => setNewEmail(event.target.value)}
+              placeholder="friend@example.com"
+              required
+            />
+            <button type="submit" className="btn btn--primary" disabled={addEmailMutation.isPending}>
+              {addEmailMutation.isPending ? 'Adding…' : 'Approve email'}
+            </button>
+          </div>
+        </form>
+
+        {allowedQuery.isSuccess && allowedQuery.data.length === 0 && (
+          <p className="muted">No approved emails yet.</p>
+        )}
+
+        <ul className="list">
+          {allowedQuery.data?.map((entry) => (
+            <li key={entry.id} className="list__item">
+              <div>
+                <strong>{entry.email}</strong>
+                <p className="muted">Approved {formatDateTime(entry.created_at)}</p>
+              </div>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={() => removeEmailMutation.mutate(entry.email)}
+                disabled={removeEmailMutation.isPending}
+              >
+                Revoke
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <div className="totals">
         {[

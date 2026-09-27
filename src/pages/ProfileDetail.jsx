@@ -2,16 +2,23 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  addKeyword,
+  addSkill,
   deleteProfile,
+  deleteResume,
   generateKeywords,
+  generateSkills,
   getProfile,
   listResumes,
+  removeKeyword,
+  removeSkill,
   updateProfile,
   uploadResume,
 } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import ProfileForm from '../components/ProfileForm.jsx'
-import KeywordChips from '../components/KeywordChips.jsx'
+import EditableChips from '../components/EditableChips.jsx'
+import TrackedCompanies from '../components/TrackedCompanies.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatDateTime } from '../lib/format.js'
 
@@ -23,6 +30,7 @@ export default function ProfileDetail() {
 
   const [resumeText, setResumeText] = useState('')
   const [resumeFile, setResumeFile] = useState(null)
+  const [resumeLabel, setResumeLabel] = useState('')
 
   const profileQuery = useQuery({
     queryKey: ['profile', id],
@@ -34,11 +42,15 @@ export default function ProfileDetail() {
     queryFn: () => listResumes(id),
   })
 
+  function invalidateProfile() {
+    queryClient.invalidateQueries({ queryKey: ['profile', id] })
+    queryClient.invalidateQueries({ queryKey: ['profiles'] })
+  }
+
   const updateMutation = useMutation({
     mutationFn: (values) => updateProfile(id, values),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', id] })
-      queryClient.invalidateQueries({ queryKey: ['profiles'] })
+      invalidateProfile()
       notify('Profile updated', 'success')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
@@ -57,19 +69,63 @@ export default function ProfileDetail() {
   const keywordsMutation = useMutation({
     mutationFn: () => generateKeywords(id),
     onSuccess: (keywords) => {
-      queryClient.invalidateQueries({ queryKey: ['profile', id] })
+      invalidateProfile()
       notify(`Generated ${keywords.length} keyword(s)`, 'success')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
+  const skillsMutation = useMutation({
+    mutationFn: () => generateSkills(id),
+    onSuccess: (skills) => {
+      invalidateProfile()
+      notify(`Extracted ${skills.length} skill(s)`, 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const addKeywordMutation = useMutation({
+    mutationFn: (keyword) => addKeyword(id, keyword),
+    onSuccess: () => invalidateProfile(),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const removeKeywordMutation = useMutation({
+    mutationFn: (keyword) => removeKeyword(id, keyword),
+    onSuccess: () => invalidateProfile(),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const addSkillMutation = useMutation({
+    mutationFn: (skill) => addSkill(id, skill),
+    onSuccess: () => invalidateProfile(),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const removeSkillMutation = useMutation({
+    mutationFn: (skill) => removeSkill(id, skill),
+    onSuccess: () => invalidateProfile(),
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
   const resumeMutation = useMutation({
-    mutationFn: () => uploadResume(id, { text: resumeText, file: resumeFile }),
+    mutationFn: () =>
+      uploadResume(id, { text: resumeText, file: resumeFile, label: resumeLabel }),
     onSuccess: () => {
       setResumeText('')
       setResumeFile(null)
+      setResumeLabel('')
       queryClient.invalidateQueries({ queryKey: ['resumes', id] })
       notify('Resume saved', 'success')
+    },
+    onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const deleteResumeMutation = useMutation({
+    mutationFn: (resumeId) => deleteResume(id, resumeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes', id] })
+      notify('Resume deleted', 'success')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -146,6 +202,11 @@ export default function ProfileDetail() {
             experience_level: profile.experience_level ?? 'mid',
             searches_per_day: profile.searches_per_day ?? 3,
             jobs_per_search: profile.jobs_per_search ?? 20,
+            date_posted: profile.date_posted ?? 'today',
+            auto_tailor: profile.auto_tailor ?? true,
+            notify_new_jobs: profile.notify_new_jobs ?? true,
+            search_hours: profile.search_hours ?? [],
+            timezone: profile.timezone ?? '',
           }}
           onSubmit={(values) => updateMutation.mutate(values)}
           submitLabel="Save changes"
@@ -164,25 +225,35 @@ export default function ProfileDetail() {
         </div>
 
         <form className="card form" onSubmit={handleResumeSubmit}>
-          <label className="field">
-            <span>Paste resume text</span>
-            <textarea
-              rows={6}
-              value={resumeText}
-              onChange={(event) => setResumeText(event.target.value)}
-              placeholder="Paste your resume as plain text…"
-            />
-          </label>
+          <div className="form-grid">
+            <label className="field field--wide">
+              <span>Paste resume text</span>
+              <textarea
+                rows={6}
+                value={resumeText}
+                onChange={(event) => setResumeText(event.target.value)}
+                placeholder="Paste your resume as plain text…"
+              />
+            </label>
 
-          <label className="field">
-            <span>…or upload a .txt file (PDF/DOCX not supported yet)</span>
-            <input
-              type="file"
-              accept=".txt,text/plain"
-              onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
-            />
-          </label>
+            <label className="field">
+              <span>Label (e.g. Backend, Data)</span>
+              <input
+                value={resumeLabel}
+                onChange={(event) => setResumeLabel(event.target.value)}
+                placeholder="Backend"
+              />
+            </label>
 
+            <label className="field">
+              <span>…or upload a .txt file (PDF/DOCX not supported yet)</span>
+              <input
+                type="file"
+                accept=".txt,text/plain"
+                onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
           <button
             type="submit"
             className="btn btn--primary"
@@ -195,15 +266,48 @@ export default function ProfileDetail() {
         {resumesQuery.isSuccess && resumesQuery.data.length > 0 && (
           <ul className="list">
             {resumesQuery.data.map((resume) => (
-              <li key={resume.id} className="list__item">
+              <li key={resume.id} className="list__item resume-item">
                 <div>
-                  <strong>Resume #{resume.id}</strong>
+                  <strong>{resume.label || `Resume #${resume.id}`}</strong>
+                  {resume.filename ? <span className="muted"> · {resume.filename}</span> : null}
                   <p className="muted">Added {formatDateTime(resume.created_at)}</p>
                 </div>
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  onClick={() => deleteResumeMutation.mutate(resume.id)}
+                  disabled={deleteResumeMutation.isPending}
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="section">
+        <div className="section__head">
+          <h2>Skills</h2>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => skillsMutation.mutate()}
+            disabled={skillsMutation.isPending}
+          >
+            {skillsMutation.isPending ? 'Extracting…' : 'Extract from resume'}
+          </button>
+        </div>
+        <p className="muted">
+          Hard skills used to score job matches. Fix auto-extraction by adding or removing.
+        </p>
+        <EditableChips
+          items={profile.skills ?? []}
+          onAdd={(skill) => addSkillMutation.mutate(skill)}
+          onRemove={(skill) => removeSkillMutation.mutate(skill)}
+          addPlaceholder="Add a skill…"
+          emptyLabel="No skills yet — extract them from a resume first."
+        />
       </section>
 
       <section className="section">
@@ -219,10 +323,24 @@ export default function ProfileDetail() {
           </button>
         </div>
         <p className="muted">
-          Generated from your profile and most recent resume. Used by job search when no
-          query is given.
+          Search queries used by job search when no query is given. Add or remove as needed.
         </p>
-        <KeywordChips keywords={profile.keywords} />
+        <EditableChips
+          items={profile.keywords ?? []}
+          onAdd={(keyword) => addKeywordMutation.mutate(keyword)}
+          onRemove={(keyword) => removeKeywordMutation.mutate(keyword)}
+          addPlaceholder="Add a keyword…"
+          emptyLabel="No keywords yet — generate or add some."
+        />
+      </section>
+
+      <section className="section">
+        <h2>Tracked companies</h2>
+        <p className="muted">
+          Pull open roles directly from company career boards (Greenhouse, Lever, Workable,
+          Recruitee).
+        </p>
+        <TrackedCompanies profileId={id} />
       </section>
     </div>
   )

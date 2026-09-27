@@ -7,14 +7,19 @@ export default function JobCard({ job }) {
       <div className="job-card__head">
         <div>
           <h3>
-            <Link to={`/jobs/${job.id}`}>{job.title}</Link>
+            <Link to={`/jobs/${job.id}`}>{job.title || 'Untitled'}</Link>
           </h3>
           <p className="muted">
             {job.company || 'Unknown company'}
             {job.location ? ` · ${job.location}` : ''}
           </p>
         </div>
-        {job.publisher && <span className="badge">{job.publisher}</span>}
+        <div className="job-card__badges">
+          {job.source && job.source !== 'jsearch' && (
+            <span className="badge badge--soft">{job.source}</span>
+          )}
+          {job.publisher && <span className="badge">{job.publisher}</span>}
+        </div>
       </div>
 
       <dl className="job-card__meta">
@@ -25,10 +30,26 @@ export default function JobCard({ job }) {
           </div>
         )}
         <div>
-          <dt>Added</dt>
-          <dd>{formatDate(job.created_at)}</dd>
+          <dt>Posted</dt>
+          <dd>{formatDate(job.posted_at)}</dd>
         </div>
+        {job.salary && (
+          <div>
+            <dt>Salary</dt>
+            <dd>{job.salary}</dd>
+          </div>
+        )}
       </dl>
+
+      {job.matched_skills && job.matched_skills.length > 0 && (
+        <ul className="chips">
+          {job.matched_skills.map((skill) => (
+            <li key={skill} className="chip chip--skill">
+              {skill}
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   )
 }

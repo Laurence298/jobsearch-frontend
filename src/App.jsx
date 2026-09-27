@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth.jsx'
+import RequireAdmin from './auth/RequireAdmin.jsx'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -34,9 +35,11 @@ function App() {
         <Route
           path="/admin"
           element={
-            <Suspense fallback={<div className="page-loading">Loading dashboard…</div>}>
-              <Admin />
-            </Suspense>
+            <RequireAdmin>
+              <Suspense fallback={<div className="page-loading">Loading dashboard…</div>}>
+                <Admin />
+              </Suspense>
+            </RequireAdmin>
           }
         />
         <Route path="*" element={<NotFound />} />
