@@ -15,12 +15,25 @@ export async function createProfile(payload) {
   return data
 }
 
-export async function previewResume(resumeText) {
-  const { data } = await client.post('/profiles/resume-preview', { resume_text: resumeText })
+export async function previewResume(resume) {
+  if (resume.file) {
+    const form = new FormData()
+    form.append('file', resume.file)
+    const { data } = await client.post('/profiles/resume-preview/file', form)
+    return data
+  }
+  const { data } = await client.post('/profiles/resume-preview', { resume_text: resume.text })
   return data
 }
 
 export async function createProfileWithResume(profile, resume) {
+  if (resume.file) {
+    const form = new FormData()
+    form.append('file', resume.file)
+    form.append('profile', JSON.stringify(profile))
+    const { data } = await client.post('/profiles/with-resume/file', form)
+    return data
+  }
   const { data } = await client.post('/profiles/with-resume', {
     profile,
     resume_text: resume.text,
@@ -40,6 +53,11 @@ export async function deleteProfile(id) {
 
 export async function listResumes(id) {
   const { data } = await client.get(`/profiles/${id}/resumes`)
+  return data
+}
+
+export async function listTailoredResumes(id) {
+  const { data } = await client.get(`/profiles/${id}/tailored-resumes`)
   return data
 }
 

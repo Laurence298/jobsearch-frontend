@@ -26,7 +26,7 @@ export default function ProfileNew() {
   }
 
   const previewMutation = useMutation({
-    mutationFn: (selectedResume) => previewResume(selectedResume.text),
+    mutationFn: previewResume,
     onSuccess: review,
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
@@ -37,29 +37,28 @@ export default function ProfileNew() {
       queryClient.invalidateQueries({ queryKey: ['profiles'] })
       queryClient.invalidateQueries({ queryKey: ['resumes', String(profile.id)] })
       notify('Profile and resume saved. Review search queries next.', 'success')
-      navigate(`/profiles/${profile.id}`, { replace: true })
+      navigate(`/profiles/${profile.id}/search`, { replace: true })
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
   })
 
-  async function handleResumeSubmit(event) {
+  function handleResumeSubmit(event) {
     event.preventDefault()
-    try {
-      const text = resumeFile ? await resumeFile.text() : resumeText
-      if (!text.trim()) {
-        notify('Paste resume text or choose a .txt file first', 'error')
-        return
-      }
-      if (text.length > 100_000) {
-        notify('Resume is too long (maximum 100,000 characters)', 'error')
-        return
-      }
-      const selectedResume = { text, filename: resumeFile?.name ?? null }
-      setResume(selectedResume)
-      previewMutation.mutate(selectedResume)
-    } catch {
-      notify('Could not read this file. Choose a UTF-8 .txt file or paste the text.', 'error')
+    if (!resumeFile && !resumeText.trim()) {
+      notify('Paste resume text or choose a resume file first', 'error')
+      return
     }
+    if (resumeFile && resumeFile.size > 5 * 1024 * 1024) {
+      notify('Resume file must be 5 MB or smaller', 'error')
+      return
+    }
+    if (!resumeFile && resumeText.length > 100_000) {
+      notify('Resume is too long (maximum 100,000 characters)', 'error')
+      return
+    }
+    const selectedResume = { text: resumeFile ? null : resumeText, file: resumeFile, filename: resumeFile?.name ?? null }
+    setResume(selectedResume)
+    previewMutation.mutate(selectedResume)
   }
 
   function addUnique(setter, value) {
@@ -99,11 +98,11 @@ export default function ProfileNew() {
           </p>
           <form className="form" onSubmit={handleResumeSubmit}>
             <label className="field">
-              <span>Upload a UTF-8 .txt resume</span>
+              <span>Upload a .txt, .pdf or .docx resume</span>
               <input
                 ref={fileInput}
                 type="file"
-                accept=".txt,text/plain"
+                accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
               />
             </label>

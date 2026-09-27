@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   addKeyword,
@@ -10,6 +10,7 @@ import {
   generateSkills,
   getProfile,
   listResumes,
+  listTailoredResumes,
   removeKeyword,
   removeSkill,
   setEducation,
@@ -20,6 +21,7 @@ import {
 } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import ProfileForm from '../components/ProfileForm.jsx'
+import ProfileTabs from '../components/ProfileTabs.jsx'
 import EditableChips from '../components/EditableChips.jsx'
 import TrackedCompanies from '../components/TrackedCompanies.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -27,6 +29,11 @@ import { formatDateTime } from '../lib/format.js'
 
 export default function ProfileDetail() {
   const { id } = useParams()
+  return <ProfileDetailContent key={id} />
+}
+
+function ProfileDetailContent() {
+  const { id, tab } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { notify } = useToast()
@@ -44,6 +51,11 @@ export default function ProfileDetail() {
   const resumesQuery = useQuery({
     queryKey: ['resumes', id],
     queryFn: () => listResumes(id),
+  })
+  const tailoredQuery = useQuery({
+    queryKey: ['tailored-resumes', id],
+    queryFn: () => listTailoredResumes(id),
+    enabled: tab === 'resumes',
   })
 
   function invalidateProfile() {
@@ -174,6 +186,10 @@ export default function ProfileDetail() {
     )
   }
 
+  if (!['resumes', 'search', 'settings'].includes(tab)) {
+    return <Navigate to={`/profiles/${id}/search`} replace />
+  }
+
   const profile = profileQuery.data
   const suggestedItems = suggestions?.profileId === id ? suggestions.items : null
 
@@ -186,7 +202,7 @@ export default function ProfileDetail() {
   function handleResumeSubmit(event) {
     event.preventDefault()
     if (!resumeFile && !resumeText.trim()) {
-      notify('Paste resume text or choose a .txt file first', 'error')
+      notify('Paste resume text or choose a resume file first', 'error')
       return
     }
     resumeMutation.mutate()
@@ -199,15 +215,12 @@ export default function ProfileDetail() {
           <Link className="breadcrumb" to="/profiles">
             ← Profiles
           </Link>
-          <h1>{profile.name}</h1>
+          <h1>{profile.name} · {tab[0].toUpperCase() + tab.slice(1)}</h1>
           <p className="muted">
             Last run {profile.last_run_at ? formatDateTime(profile.last_run_at) : 'never'}
           </p>
         </div>
-        <div className="page__head-actions">
-          <Link className="btn btn--primary" to={`/profiles/${id}/jobs`}>
-            View jobs
-          </Link>
+        {tab === 'settings' && <div className="page__head-actions">
           <button
             type="button"
             className="btn btn--danger"
@@ -216,12 +229,16 @@ export default function ProfileDetail() {
           >
             Delete profile
           </button>
-        </div>
+        </div>}
       </header>
 
+      <ProfileTabs profileId={id} />
+
+      <div className="profile-sections" hidden={tab !== 'settings'}>
       <section className="section">
-        <h2>Search settings</h2>
+        <h2>Profile settings</h2>
         <ProfileForm
+          key={profile.resume_template}
           initialValues={{
             name: profile.name ?? '',
             full_name: profile.full_name ?? '',
@@ -242,6 +259,7 @@ export default function ProfileDetail() {
             jobs_per_search: profile.jobs_per_search ?? 20,
             date_posted: profile.date_posted ?? 'today',
             auto_tailor: profile.auto_tailor ?? true,
+            resume_template: profile.resume_template ?? 'auto',
             notify_new_jobs: profile.notify_new_jobs ?? true,
             notify_weekly_digest: profile.notify_weekly_digest ?? false,
             search_hours: profile.search_hours ?? [],
@@ -252,7 +270,9 @@ export default function ProfileDetail() {
           submitting={updateMutation.isPending}
         />
       </section>
+      </div>
 
+      <div className="profile-sections" hidden={tab !== 'resumes'}>
       <section className="section">
         <div className="section__head">
           <h2>Resume</h2>
@@ -261,6 +281,19 @@ export default function ProfileDetail() {
               ? `${resumesQuery.data.length} saved`
               : 'None saved yet'}
           </span>
+        </div>
+
+        <div className="card form">
+          <label className="field">
+            <span>Default layout for new tailored resumes</span>
+            <select value={profile.resume_template ?? 'auto'} disabled={updateMutation.isPending}
+              onChange={(event) => updateMutation.mutate({ resume_template: event.target.value })}>
+              <option value="auto">Auto — match the job</option>
+              <option value="basic">Basic — simple jobs</option>
+              <option value="professional">Professional</option>
+            </select>
+          </label>
+          <p className="muted">This applies to future jobs. You can change an individual job’s layout on its resume page.</p>
         </div>
 
         <form className="card form" onSubmit={handleResumeSubmit}>
@@ -285,10 +318,10 @@ export default function ProfileDetail() {
             </label>
 
             <label className="field">
-              <span>…or upload a .txt file (PDF/DOCX not supported yet)</span>
+              <span>…or upload a .txt, .pdf or .docx file</span>
               <input
                 type="file"
-                accept=".txt,text/plain"
+                accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
               />
             </label>
@@ -324,7 +357,28 @@ export default function ProfileDetail() {
           </ul>
         )}
       </section>
+      <section className="section">
+        <h2>Tailored for jobs</h2>
+        {tailoredQuery.isError && <p className="alert alert--error">{apiErrorMessage(tailoredQuery.error)}</p>}
+        {tailoredQuery.isSuccess && tailoredQuery.data.length === 0 && (
+          <p className="muted">No tailored resumes yet. Open a job to create one.</p>
+        )}
+        {tailoredQuery.isSuccess && tailoredQuery.data.length > 0 && (
+          <ul className="list">
+            {tailoredQuery.data.map((tailored) => (
+              <li key={tailored.id} className="list__item">
+                <div>Job #{tailored.job_id} · {tailored.template_id} layout
+                  <p className="muted">Created {formatDateTime(tailored.created_at)}</p>
+                </div>
+                <Link className="btn" to={`/jobs/${tailored.job_id}`}>View and change layout</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </div>
 
+      <div className="profile-sections" hidden={tab !== 'search'}>
       <section className="section">
         <div className="section__head">
           <h2>Skills</h2>
@@ -461,6 +515,8 @@ export default function ProfileDetail() {
         </p>
         <TrackedCompanies profileId={id} />
       </section>
+      <Link className="btn btn--primary" to={`/profiles/${id}/jobs`}>Search jobs or view matches</Link>
+      </div>
     </div>
   )
 }

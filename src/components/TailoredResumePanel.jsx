@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   getTailoredData,
   getTailoredPdf,
@@ -8,7 +9,7 @@ import {
   tailorResume,
   updateTailoredData,
 } from '../api/jobs.js'
-import { listResumes } from '../api/profiles.js'
+import { getProfile, listResumes } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import { useToast } from './Toast.jsx'
 import { downloadText } from '../lib/format.js'
@@ -112,6 +113,7 @@ function TailorForm({ jobId, profileId }) {
     queryKey: ['resumes', profileId],
     queryFn: () => listResumes(profileId),
   })
+  const profileQuery = useQuery({ queryKey: ['profile', profileId], queryFn: () => getProfile(profileId) })
 
   const tailorMutation = useMutation({
     mutationFn: () =>
@@ -133,7 +135,7 @@ function TailorForm({ jobId, profileId }) {
       <p className="muted">No tailored resume for this job yet.</p>
       {!resumesQuery.isLoading && !hasResumes && (
         <p className="alert alert--warning">
-          Upload a resume on the profile page first.
+          <Link to={`/profiles/${profileId}/resumes`}>Upload a resume</Link> on the profile page first.
         </p>
       )}
       <div className="resume-toolbar">
@@ -154,7 +156,7 @@ function TailorForm({ jobId, profileId }) {
         <label className="field">
           <span>Template</span>
           <select value={template} onChange={(event) => setTemplate(event.target.value)}>
-            <option value="">Auto</option>
+            <option value="">Use profile preference ({profileQuery.data?.resume_template ?? 'auto'})</option>
             {TEMPLATES.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -213,6 +215,7 @@ export default function TailoredResumePanel({ jobId, profileId }) {
   const { notify } = useToast()
   const [view, setView] = useState('preview')
   const [pollCount, setPollCount] = useState(0)
+  const [selectedTemplate, setSelectedTemplate] = useState('')
 
   const tailoredQuery = useQuery({
     queryKey: ['tailored', jobId],
@@ -238,6 +241,18 @@ export default function TailoredResumePanel({ jobId, profileId }) {
       setView('preview')
     },
     onError: (error) => notify(apiErrorMessage(error), 'error'),
+  })
+
+  const templateMutation = useMutation({
+    mutationFn: (template) => tailorResume(jobId, { template }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tailored', jobId] })
+      notify('Resume layout updated', 'success')
+    },
+    onError: (error) => {
+      setSelectedTemplate('')
+      notify(apiErrorMessage(error), 'error')
+    },
   })
 
   function handleRegenerate() {
@@ -284,6 +299,18 @@ export default function TailoredResumePanel({ jobId, profileId }) {
                 {tailoredQuery.data.is_user_edited ? 'edited by you' : 'AI-tailored'}
               </span>
               <span className="badge badge--soft">{tailoredQuery.data.template_id}</span>
+              <label className="field">
+                <span>Layout for this job</span>
+                <select value={selectedTemplate || tailoredQuery.data.template_id}
+                  disabled={templateMutation.isPending}
+                  onChange={(event) => {
+                    setSelectedTemplate(event.target.value)
+                    templateMutation.mutate(event.target.value)
+                  }}>
+                  <option value="basic">Basic — simple jobs</option>
+                  <option value="professional">Professional</option>
+                </select>
+              </label>
               <button
                 type="button"
                 className={`btn ${view === 'preview' ? 'btn--primary' : ''}`}
@@ -310,7 +337,7 @@ export default function TailoredResumePanel({ jobId, profileId }) {
           </div>
 
           {view === 'preview' ? (
-            <ResumePreview jobId={jobId} />
+            <ResumePreview key={tailoredQuery.data.template_id} jobId={jobId} />
           ) : (
             <EditView
               jobId={jobId}

@@ -25,7 +25,8 @@ function App() {
         <Route index element={<Navigate to="/profiles" replace />} />
         <Route path="/profiles" element={<Profiles />} />
         <Route path="/profiles/new" element={<ProfileNew />} />
-        <Route path="/profiles/:id" element={<ProfileDetail />} />
+        <Route path="/profiles/:id" element={<Navigate to="search" replace />} />
+        <Route path="/profiles/:id/:tab" element={<ProfileDetail />} />
         <Route path="/profiles/:id/jobs" element={<ProfileJobs />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
         <Route path="*" element={<NotFound />} />

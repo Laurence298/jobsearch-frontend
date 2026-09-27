@@ -5,6 +5,7 @@ import { bulkFeedback, listJobDates, listJobs, searchJobs, unifiedSearch } from 
 import { getProfile } from '../api/profiles.js'
 import { apiErrorMessage } from '../api/client.js'
 import JobCard from '../components/JobCard.jsx'
+import ProfileTabs from '../components/ProfileTabs.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatDate, formatDateTime, localDateString } from '../lib/format.js'
 
@@ -180,7 +181,7 @@ export default function ProfileJobs() {
     <div className="page">
       <header className="page__head">
         <div>
-          <Link className="breadcrumb" to={`/profiles/${id}`}>
+          <Link className="breadcrumb" to={`/profiles/${id}/settings`}>
             ← {profileQuery.data?.name ?? 'Profile'}
           </Link>
           <h1>Jobs</h1>
@@ -194,6 +195,8 @@ export default function ProfileJobs() {
           </p>
         </div>
       </header>
+
+      <ProfileTabs profileId={id} />
 
       <section className="card job-search" aria-label="Find jobs">
         <form className="job-search__form" onSubmit={handleUnifiedSearch}>
@@ -284,7 +287,7 @@ export default function ProfileJobs() {
             {searchMutation.isPending ? 'Searching…' : 'Run saved keywords'}
           </button>
           {profileQuery.isSuccess && !profileQuery.data.keywords?.length && (
-            <Link to={`/profiles/${id}`} className="muted">
+            <Link to={`/profiles/${id}/search`} className="muted">
               Add keywords to run a profile search
             </Link>
           )}

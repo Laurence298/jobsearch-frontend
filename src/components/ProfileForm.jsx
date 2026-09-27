@@ -35,6 +35,7 @@ const EMPTY = {
   jobs_per_search: 20,
   date_posted: 'today',
   auto_tailor: true,
+  resume_template: 'auto',
   notify_new_jobs: true,
   notify_weekly_digest: false,
   search_hours: [],
@@ -328,6 +329,15 @@ export default function ProfileForm({ initialValues, onSubmit, submitLabel, subm
             onChange={(event) => setField('auto_tailor', event.target.checked)}
           />
           <span>Auto-tailor resumes for new jobs</span>
+        </label>
+
+        <label className="field">
+          <span>Resume layout for new jobs</span>
+          <select value={values.resume_template} onChange={(event) => setField('resume_template', event.target.value)}>
+            <option value="auto">Auto (based on job)</option>
+            <option value="basic">Basic — simple jobs</option>
+            <option value="professional">Professional</option>
+          </select>
         </label>
 
         <label className="checkbox">

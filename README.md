@@ -2,6 +2,11 @@
 
 React/Vite frontend for JobTrackerServer.
 
+On mobile, each profile has four bottom tabs (Jobs, Resumes, Search, Settings)
+and an expandable taskbar for switching profiles, notifications, and account actions.
+Resume-first setup accepts text, PDF, or DOCX uploads. Resume layout preferences
+and per-job overrides require the matching JobTrackerServer API and migration.
+
 ## Development
 
 Run `npm install` and `npm run dev`. Browser API requests use `/api` by default;

@@ -7,7 +7,7 @@ export default function ProfileCard({ profile, onDelete, deleting }) {
       <div className="profile-card__head">
         <div>
           <h3>
-            <Link to={`/profiles/${profile.id}`}>{profile.name}</Link>
+            <Link to={`/profiles/${profile.id}/jobs`}>{profile.name}</Link>
           </h3>
           <p className="muted">
             {profile.desired_titles || 'No desired titles'}
@@ -50,7 +50,7 @@ export default function ProfileCard({ profile, onDelete, deleting }) {
         <Link className="btn btn--primary" to={`/profiles/${profile.id}/jobs`}>
           View jobs
         </Link>
-        <Link className="btn" to={`/profiles/${profile.id}`}>
+        <Link className="btn" to={`/profiles/${profile.id}/settings`}>
           Manage
         </Link>
         <button
